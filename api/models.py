@@ -4,6 +4,14 @@ from datetime import datetime
 
 from app import db
 
+__all__ = ['User', 'Authtoken', 'EmailConfirm', 'Courier', 'Case', 'Document']
+
+CHARS_POOL = string.ascii_lowercase + string.ascii_uppercase + string.digits
+
+
+def generate_key(length: int):
+    return ''.join(sample(CHARS_POOL, length))
+
 
 class User(db.Model):
 
@@ -25,18 +33,10 @@ class User(db.Model):
         ADMIN = 1
 
 
-_CHARS_POOL = string.ascii_lowercase + string.ascii_uppercase + string.digits
-
-
-def generate_key():
-    return ''.join(sample(_CHARS_POOL, 6))
-
-
 class Authtoken(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"),
-                        nullable=False, unique=True, ondelete="CASCADE")
-    key = db.Column(db.VARCHAR(6), nullable=False, default=generate_key)
+    key = db.Column(db.VARCHAR(20), primary_key=True, default=lambda: generate_key(20), )
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"),
+                        nullable=False, unique=True)
 
     def __repr__(self):
         return f'Key "{self.key} from User {self.user_id}"'
@@ -44,9 +44,9 @@ class Authtoken(db.Model):
 
 class EmailConfirm(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"),
-                        nullable=False, unique=True, ondelete="CASCADE")
-    key = db.Column(db.VARCHAR(6), nullable=False, default=generate_key)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"),
+                        nullable=False, unique=True)
+    key = db.Column(db.VARCHAR(6), nullable=False, default=lambda: generate_key(6))
     email = db.Column(db.VARCHAR, index=True, unique=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
@@ -66,7 +66,8 @@ class Courier(db.Model):
 
 class Document(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    case_id = db.Column(db.Integer, db.ForeignKey("case.id"), nullable=False)
+    case_id = db.Column(db.Integer, db.ForeignKey("case.id", ondelete="CASCADE"),
+                        nullable=False)
     category = db.Column(db.VARCHAR(64), nullable=False)
     file = db.Column(db.VARCHAR, nullable=False)
 
@@ -78,7 +79,7 @@ class Document(db.Model):
 
 class Case(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), ondelete="CASCADE")
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"))
     courier_id = db.Column(db.Integer, db.ForeignKey("courier.id"), nullable=False)
     tracking_number = db.Column(db.VARCHAR, nullable=True)
     duty = db.Column(db.Integer, nullable=False)
