@@ -1,0 +1,7 @@
+#server
+Flask==2.0.3
+flask-restful==0.3.9
+flask-sqlalchemy==2.5.1
+flask-migrate==3.1.0
+sqlalchemy==0.7.9
+sqlalchemy-migrate==0.13.0
