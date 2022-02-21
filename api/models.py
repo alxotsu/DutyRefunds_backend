@@ -37,7 +37,11 @@ class Authtoken(db.Model):
     key = db.Column(db.VARCHAR(20), primary_key=True, default=lambda: generate_key(20), )
     user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"),
                         nullable=False, unique=True)
+
     user = db.relationship('User')
+
+    def update_key(self):
+        self.key = generate_key(20)
 
     def __repr__(self):
         return f'Key "{self.key}" from User {self.user_id}'
@@ -50,6 +54,11 @@ class EmailConfirm(db.Model):
     key = db.Column(db.VARCHAR(6), nullable=False, default=lambda: generate_key(6))
     email = db.Column(db.VARCHAR, index=True, unique=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    user = db.relationship('User', backref='email_confirm_obj')
+
+    def update_key(self):
+        self.key = generate_key(6)
 
     def __repr__(self):
         return f'Email "{self.email}" confirm for User {self.user_id}'

@@ -13,3 +13,11 @@ class UserSerializer(ModelSerializer):
     read_only_fields = ["id"]
 
     signature = FileSerializer("signature")
+
+    def create(self):
+        email = self.data.pop("email")
+        instance = super(UserSerializer, self).create()
+
+        email_confirm_instance = EmailConfirm(user=instance, email=email)
+
+        return instance, email_confirm_instance

@@ -21,6 +21,6 @@ def authorize_decorator(method: callable):
 def check_perms_decorator(method: callable):
     def wrapper(self, *args, **kwargs):
         if hasattr(self, f"{request.method.lower()}_perms"):
-            getattr(self, f"{request.method.lower()}_perms")(*args, **kwargs)
+            getattr(self, f"{request.method.lower()}_perms")(self, *args, **kwargs)
         return method(self, *args, **kwargs)
     return wrapper

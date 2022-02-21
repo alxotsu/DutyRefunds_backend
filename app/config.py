@@ -1,23 +1,33 @@
 """
-Server:
-    :param DEBUG
-        :type int | None
-        :default 0
-        :description
-            0 - False
-            1 - True
+Environment requirements:
 
-Database:
-    :param DB_USER:
-        :type str | None
-        :default "postgres"
-    :param DB_PASSWORD:
-        :type str
-    :param DB_URL:
-        :type str | None
-        :default "localhost:5432"
-    :param DB_NAME:
-        :type str
+    Flask:
+        DEBUG
+            type: int | None
+            default: 0
+            description:
+                0 - False
+                1 - True
+
+    Database:
+        DB_USER:
+            type: str | None
+            default: "postgres"
+        DB_PASSWORD:
+            type: str
+        DB_URL:
+            type: str | None
+            default: "localhost:5432"
+        DB_NAME:
+            type: str
+
+    Email:
+        EMAIL_HOST_USER:
+            type: str | None
+            default: None
+        EMAIL_HOST_PASSWORD:
+            type: str | None
+            default: None
 
 """
 
@@ -36,3 +46,9 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_MIGRATE_REPO = path.join(BASE_DIR, 'api/migrations')
 
+    MAIL_SERVER = 'smtp.gmail.com'
+    MAIL_PORT = 587
+    MAIL_USE_TLS = True
+    MAIL_USERNAME = getenv('EMAIL_HOST_USER')
+    MAIL_DEFAULT_SENDER = getenv('EMAIL_HOST_USER')
+    MAIL_PASSWORD = getenv('EMAIL_HOST_PASSWORD')

@@ -1,16 +1,18 @@
 from flask import Flask
 from flask_restful import Api
 from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
+from flask_mail import Mail
 
 from .config import Config
 
-__all__ = ['app', 'db', 'api', 'Config']
+__all__ = ['app', 'db', 'api', 'mail' 'Config']
 
 
 app = Flask(__name__)
 app.config.from_object(Config)
 
 db = SQLAlchemy(app)
+
+mail = Mail(app)
 
 api = Api(app)

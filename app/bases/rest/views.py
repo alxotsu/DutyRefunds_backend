@@ -19,7 +19,6 @@ class GenericView(Resource):
         check_perms_decorator,
         authorize_decorator,
     ]
-    lookup_field = 'id'
     serializer_class: ModelSerializer
 
     def handle_exception(self, exception: Exception):
@@ -60,7 +59,7 @@ class GenericView(Resource):
 
     def get_object(self, *args, **kwargs):
         return self.get_queryset(*args, **kwargs)\
-            .get(**{self.lookup_field: kwargs[self.lookup_field]})
+            .get(kwargs[self.lookup_field])
 
 
 class CreateMixin:
