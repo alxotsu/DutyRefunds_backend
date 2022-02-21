@@ -1,4 +1,4 @@
-*.db
+/scripts/request_sender.py
 
 # IntelliJ project files
 .idea

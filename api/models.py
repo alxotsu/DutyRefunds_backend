@@ -37,9 +37,10 @@ class Authtoken(db.Model):
     key = db.Column(db.VARCHAR(20), primary_key=True, default=lambda: generate_key(20), )
     user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"),
                         nullable=False, unique=True)
+    user = db.relationship('User')
 
     def __repr__(self):
-        return f'Key "{self.key} from User {self.user_id}"'
+        return f'Key "{self.key}" from User {self.user_id}'
 
 
 class EmailConfirm(db.Model):

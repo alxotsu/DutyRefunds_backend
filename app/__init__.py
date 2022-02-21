@@ -5,7 +5,6 @@ from flask_migrate import Migrate
 
 from .config import Config
 
-
 __all__ = ['app', 'db', 'api', 'Config']
 
 
@@ -13,6 +12,5 @@ app = Flask(__name__)
 app.config.from_object(Config)
 
 db = SQLAlchemy(app)
-migrate = Migrate(app, db)
 
 api = Api(app)
