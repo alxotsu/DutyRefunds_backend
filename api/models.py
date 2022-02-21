@@ -28,6 +28,11 @@ class User(db.Model):
     def __repr__(self):
         return f'User #{self.id} "{self.username}"'
 
+    def serialize(self):
+        return {"id": self.id,
+                "username": self.username,
+                "subs_on_marketing": self.subs_on_marketing}
+
     class ROLE:
         USER = 0
         ADMIN = 1

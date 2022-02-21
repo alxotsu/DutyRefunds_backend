@@ -25,5 +25,5 @@ def check_perms_decorator(method: callable):
                 getattr(self, f"{request.method.lower()}_perms")(*args, **kwargs)
             except Exception as e:  # TODO replace on APIException
                 return e, 403
-        return method(*args, **kwargs)
+        return method(self, *args, **kwargs)
     return wrapper

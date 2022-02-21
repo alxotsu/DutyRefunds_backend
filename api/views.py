@@ -1,9 +1,16 @@
-from app.bases import GenericView
+from app.bases.rest.views import *
+from api.models import User
 
-__all__ = ['EchoView']
+__all__ = ['EchoView', 'AccountsViewSet']
 
 
 class EchoView(GenericView):
 
-    def get(*args, **kwargs):
+    def get(self, *args, **kwargs):
         return {"resp": "Hi!"}, 200
+
+
+class AccountsViewSet(GenericView, ViewSetMixin, CreateMixin):
+    model = User
+
+
