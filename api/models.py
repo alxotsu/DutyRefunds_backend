@@ -20,18 +20,13 @@ class User(db.Model):
     email = db.Column(db.VARCHAR, index=True, unique=True, nullable=True)
     email_verified = db.Column(db.Boolean, default=False, nullable=False)
     subs_on_marketing = db.Column(db.Boolean, default=False, nullable=False)
-    signature = db.Column(db.VARCHAR, nullable=False)
+    signature = db.Column(db.VARCHAR)
     role = db.Column(db.SmallInteger, nullable=False, default=0)
 
     cases = db.relationship('Case', backref='user', lazy='dynamic')
 
     def __repr__(self):
         return f'User #{self.id} "{self.username}"'
-
-    def serialize(self):
-        return {"id": self.id,
-                "username": self.username,
-                "subs_on_marketing": self.subs_on_marketing}
 
     class ROLE:
         USER = 0

@@ -2,13 +2,13 @@ try:
     from collections.abc import Mapping
 except ImportError:
     from collections import Mapping
+from typing import Type
 from werkzeug.wrappers import Response as ResponseBase
 from flask_restful.utils import unpack, OrderedDict
-
 from flask_restful import Resource, request
-from app import db
+from app import db, Config
+from app.bases.rest.serializers import ModelSerializer
 from .decorators import *
-from typing import Type
 
 __all__ = ['GenericView', 'CreateMixin', 'UpdateMixin',
            'GetMixin', 'DeleteMixin', 'ViewSetMixin']
@@ -19,6 +19,13 @@ class GenericView(Resource):
         check_perms_decorator,
         authorize_decorator,
     ]
+    lookup_field = 'id'
+    serializer_class: ModelSerializer
+
+    def handle_exception(self, exception: Exception):
+        if Config.DEBUG_MODE:
+            raise exception
+        # TODO add exception handling
 
     def dispatch_request(self, *args, **kwargs):
         meth = getattr(self, request.method.lower(), None)
@@ -26,15 +33,13 @@ class GenericView(Resource):
             meth = getattr(self, 'get', None)
         assert meth is not None, 'Unimplemented method %r' % request.method
 
-        if isinstance(self.method_decorators, Mapping):
-            decorators = self.method_decorators.get(request.method.lower(), [])
-        else:
-            decorators = self.method_decorators
-
-        for decorator in decorators:
+        for decorator in self.decorators:
             meth = decorator(meth)
 
-        resp = meth(self, *args, **kwargs)
+        try:
+            resp = meth(self, *args, **kwargs)
+        except Exception as e:
+            resp = self.handle_exception(e)
 
         if isinstance(resp, ResponseBase):
             return resp
@@ -50,11 +55,8 @@ class GenericView(Resource):
 
         return resp
 
-    model: Type[db.Model]
-    lookup_field = 'id'
-
     def get_queryset(self,  *args, **kwargs):
-        return self.model.query
+        return self.serializer_class.model.query
 
     def get_object(self, *args, **kwargs):
         return self.get_queryset(*args, **kwargs)\
@@ -62,19 +64,43 @@ class GenericView(Resource):
 
 
 class CreateMixin:
-    pass
+    def post(self, *args, **kwargs):
+        serializer = self.serializer_class(data=request.json)
+        instance = serializer.create()
+        db.session.add(instance)
+        db.session.commit()
+
+        serializer.instance = instance
+        return serializer.serialize(), 201
 
 
 class UpdateMixin:
-    pass
+    def put(self, *args, **kwargs):
+        instance = self.get_object(*args, **kwargs)
+        serializer = self.serializer_class(instance=instance, data=request.json)
+        instance = serializer.update()
+        db.session.add(instance)
+        db.session.commit()
+
+        serializer.instance = instance
+        return serializer.serialize(), 200
 
 
 class GetMixin:
-    pass
+    def get(self, *args, **kwargs):
+        instance = self.get_object(*args, **kwargs)
+        serializer = self.serializer_class(instance=instance)
+
+        return serializer.serialize(), 200
 
 
 class DeleteMixin:
-    pass
+    def delete(self, *args, **kwargs):
+        instance = self.get_object(*args, **kwargs)
+        db.session.delete(instance)
+        db.session.commit()
+
+        return None, 204
 
 
 class ViewSetMixin:
@@ -86,5 +112,6 @@ class ViewSetMixin:
         page_size = int(request.args.get('page_size', self.page_size))
 
         results = queryset.paginate(page_number, page_size, False).items
+        serializer = self.serializer_class(instance=results, many=True)
 
-        return {"results": [item.serialize() for item in results]}
+        return {"results": serializer.serialize()}, 200

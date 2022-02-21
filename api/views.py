@@ -1,5 +1,5 @@
-from app.bases.rest.views import *
-from api.models import User
+from app.bases import *
+from api.serializers import *
 
 __all__ = ['EchoView', 'AccountsViewSet']
 
@@ -11,6 +11,6 @@ class EchoView(GenericView):
 
 
 class AccountsViewSet(GenericView, ViewSetMixin, CreateMixin):
-    model = User
+    serializer_class = UserSerializer
 
 
