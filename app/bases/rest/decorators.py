@@ -19,6 +19,11 @@ def authorize_decorator(method: callable):
 
 
 def check_perms_decorator(method: callable):
-    def wrapper(*args, **kwargs):
+    def wrapper(self, *args, **kwargs):
+        if hasattr(self, f"{request.method.lower()}_perms"):
+            try:
+                getattr(self, f"{request.method.lower()}_perms")(*args, **kwargs)
+            except Exception as e:  # TODO replace on APIException
+                return e, 403
         return method(*args, **kwargs)
     return wrapper
