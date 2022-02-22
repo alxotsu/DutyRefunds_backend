@@ -14,7 +14,6 @@ def generate_key(length: int):
 
 
 class User(db.Model):
-
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.VARCHAR(32), nullable=False)
     email = db.Column(db.VARCHAR, index=True, unique=True, nullable=True)
@@ -68,11 +67,18 @@ class EmailConfirm(db.Model):
 class Courier(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.VARCHAR(64), nullable=False, unique=True)
-    calculator_script_filename = db.Column(db.VARCHAR(64))
     required_documents = db.Column(db.JSON)
 
     def __repr__(self):
         return f'Courier "{self.name}"'
+
+    def calc_cost(self, duty: int, vat: int) -> int:
+        from api.calculators import CALCULATORS
+        calculator = CALCULATORS[self.name] \
+            if self.name in CALCULATORS \
+            else CALCULATORS['other']
+
+        return calculator(duty, vat)
 
 
 class Document(db.Model):
