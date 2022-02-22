@@ -31,20 +31,21 @@ Environment requirements:
 
 """
 
-from os import environ, getenv, path
+from os import environ, getenv, path, sep
 from pathlib import Path
 
 __all__ = ['Config']
 
 
 class Config:
-    BASE_DIR = Path(__file__).resolve().parent.parent
+    BASE_DIR = str(Path(__file__).resolve().parent.parent).replace(sep, '/')
 
     DEBUG_MODE = bool(int(getenv("DEBUG", 0)))
 
     SQLALCHEMY_DATABASE_URI = f'postgresql+psycopg2://{getenv("DB_USER", "postgres")}:{environ["DB_PASSWORD"]}@{getenv("DB_URL", "localhost:5432")}/{environ["DB_NAME"]}'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_MIGRATE_REPO = path.join(BASE_DIR, 'api/migrations')
+
+    UPLOAD_FOLDER = BASE_DIR + '/media/'
 
     MAIL_SERVER = 'smtp.gmail.com'
     MAIL_PORT = 587

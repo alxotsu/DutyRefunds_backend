@@ -1,5 +1,11 @@
+from pathlib import Path
+from os import remove
+from datetime import datetime
 from typing import Type
-from app import db
+from werkzeug.utils import secure_filename
+from flask import request
+from app import db, Config
+from app.bases.exceptions import APIException
 
 __all__ = ['ModelSerializer', 'FileSerializer']
 
@@ -77,17 +83,39 @@ class ModelSerializer:
 
 
 class FileSerializer:
-    def __init__(self, path):
+    def __init__(self, path: str, name_prefix: str, allowed_files=('.jpg', '.pdf')):
         self.path = path
+        self.name_prefix = name_prefix
+        self.allowed_files = allowed_files
         self.instance = None
         self.data = None
 
     def serialize(self):
         return self.instance
 
-    def create(self):  # TODO files implementation
-        pass
+    def create(self):
+        if self.name_prefix in request.files:
+            file = request.files[self.name_prefix]
+
+            file_res = '.' + secure_filename(file.filename).split('.')[-1]
+            full_path = Config.UPLOAD_FOLDER + self.path
+            filename = self.name_prefix + datetime.utcnow().isoformat().replace(':', '-') + file_res
+
+            if file_res not in self.allowed_files:
+                raise APIException(f"Forbidden file type. {self.allowed_files} only", 403)
+
+            Path(full_path).mkdir(parents=True, exist_ok=True)
+            file.save(full_path + filename)
+
+            return self.path + filename
 
     def update(self):
-        pass
+        if self.name_prefix in request.files:
+
+            result = self.create()
+
+            old_full_path = Config.UPLOAD_FOLDER + self.instance
+            remove(old_fullpath)
+
+            return result
 

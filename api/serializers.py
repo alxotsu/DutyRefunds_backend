@@ -1,4 +1,5 @@
 from app.bases.rest.serializers import *
+from app import Config
 from api.models import *
 
 
@@ -12,7 +13,7 @@ class UserSerializer(ModelSerializer):
     write_only_fields = ["email_verified", "role"]
     read_only_fields = ["id"]
 
-    signature = FileSerializer("signature")
+    signature = FileSerializer("signatures/", "signature")
 
     def create(self):
         email = self.data.pop("email")

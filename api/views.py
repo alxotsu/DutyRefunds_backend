@@ -1,3 +1,4 @@
+from flask import send_from_directory
 from flask_mail import Mail, Message
 from flask_restful import request
 from app.bases import *
@@ -6,7 +7,12 @@ from api.models import Authtoken, User, EmailConfirm
 from api.serializers import *
 from api.models import db
 
-__all__ = ['AccountsViewSet', 'AccountView', 'TokenView']
+__all__ = ['FileView', 'AccountsViewSet', 'AccountView', 'TokenView']
+
+
+class FileView(GenericView):
+    def get(self, *args, **kwargs):
+        return send_from_directory(Config.UPLOAD_FOLDER, kwargs['path'])
 
 
 class AccountsViewSet(GenericView, ViewSetMixin, CreateMixin):
