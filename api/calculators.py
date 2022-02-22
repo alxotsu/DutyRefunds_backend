@@ -3,7 +3,7 @@ __all__ = ['CALCULATORS']
 
 
 def dhl_calc(duty: int, vat: int) -> int:
-    return max(1100, int(0.025*duty + vat))
+    return max(1100, int(0.025*(duty + vat)))
 
 
 def dpd_calc(duty: int, vat: int) -> int:
@@ -11,7 +11,7 @@ def dpd_calc(duty: int, vat: int) -> int:
 
 
 def fedex_calc(duty: int, vat: int) -> int:
-    return max(1200, int(0.025*duty + vat))
+    return max(1200, int(0.025*(duty + vat)))
 
 
 def parcelforce_calc(duty: int, vat: int) -> int:
@@ -19,7 +19,7 @@ def parcelforce_calc(duty: int, vat: int) -> int:
 
 
 def ups_calc(duty: int, vat: int) -> int:
-    return max(1150, int(0.025*duty + vat))
+    return max(1150, int(0.025*(duty + vat)))
 
 
 def other_calc(duty: int, vat: int) -> int:

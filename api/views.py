@@ -19,7 +19,7 @@ class AccountsViewSet(GenericView, ViewSetMixin, CreateMixin):
     serializer_class = UserSerializer
 
     def post(self, *args, **kwargs):
-        serializer = self.serializer_class(data=request.json)
+        serializer = self.serializer_class(data=request.request_data)
         instance = serializer.create()
         db.session.add(instance)
         db.session.commit()
@@ -34,7 +34,7 @@ class AccountsViewSet(GenericView, ViewSetMixin, CreateMixin):
         return serializer.serialize(), 201
 
     def post_perms(self, *args, **kwargs):
-        if User.query.filter_by(email=request.json['email']).all():
+        if User.query.filter_by(email=request.request_data['email']).all():
             raise APIException("User with this email already exist", 403)
 
 
@@ -43,7 +43,7 @@ class AccountView(GenericView, GetMixin, UpdateMixin, DeleteMixin):
 
     def put(self, *args, **kwargs):
         instance = self.get_object(*args, **kwargs)
-        serializer = self.serializer_class(instance=instance, data=request.json)
+        serializer = self.serializer_class(instance=instance, data=request.request_data)
         instance = serializer.update()
         db.session.add(instance)
         db.session.commit()
@@ -95,7 +95,7 @@ class TokenView(GenericView):
     def post(self, *args, **kwargs):
         user = self.get_object(*args, **kwargs)
         # TODO add email token time expire
-        if user.email_confirm_obj[0].key == request.json["key"]:
+        if user.email_confirm_obj[0].key == request.request_data["key"]:
             user.email = user.email_confirm_obj[0].email
             user.email_verified = True
             token = Authtoken(user=user)

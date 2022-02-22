@@ -19,6 +19,7 @@ class GenericView(Resource):
     method_decorators = [
         check_perms_decorator,
         authorize_decorator,
+        data_extract_decorator,
     ]
     serializer_class: ModelSerializer
     lookup_field = 'id'
@@ -75,7 +76,7 @@ class GenericView(Resource):
 
 class CreateMixin:
     def post(self, *args, **kwargs):
-        serializer = self.serializer_class(data=request.json)
+        serializer = self.serializer_class(data=request.request_data)
         instance = serializer.create()
         db.session.add(instance)
         db.session.commit()
@@ -87,7 +88,7 @@ class CreateMixin:
 class UpdateMixin:
     def put(self, *args, **kwargs):
         instance = self.get_object(*args, **kwargs)
-        serializer = self.serializer_class(instance=instance, data=request.json)
+        serializer = self.serializer_class(instance=instance, data=request.request_data)
         instance = serializer.update()
         db.session.add(instance)
         db.session.commit()
