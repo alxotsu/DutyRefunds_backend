@@ -6,7 +6,7 @@ from api.models import Authtoken, User, EmailConfirm
 from api.serializers import *
 from api.models import db
 
-__all__ = ['EchoView', 'AccountsViewSet', 'EmailConfirmView']
+__all__ = ['EchoView', 'AccountsViewSet', 'TokenView']
 
 
 class EchoView(GenericView):
@@ -35,8 +35,8 @@ class AccountsViewSet(GenericView, ViewSetMixin, CreateMixin):
         return serializer.serialize(), 201
 
     def post_perms(self, *args, **kwargs):
-        if User.query.get(email=request.json['email']):
-            raise Exception("User with this email already exist")
+        if User.query.filter_by(email=request.json['email']).all():
+            raise APIException("User with this email already exist", 403)
 
 
 class TokenView(GenericView):
@@ -44,10 +44,13 @@ class TokenView(GenericView):
 
     def get(self, *args, **kwargs):
         user = self.get_object(*args, **kwargs)
-        confirm_obj = EmailConfirmView(user=user, email=user.email)
-        confirm_obj.update_key()
+        if user.email_confirm_obj:
+            confirm_obj = user.email_confirm_obj[0]
+        else:
+            confirm_obj = EmailConfirm(user=user, email=user.email)
 
-        db.session.add(confirm_obj)
+            db.session.add(confirm_obj)
+            db.session.commit()
 
         msg = Message("DutyRefunds confirm email",
                       sender=Config.MAIL_DEFAULT_SENDER,

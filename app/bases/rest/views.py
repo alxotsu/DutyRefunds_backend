@@ -9,6 +9,7 @@ from flask_restful import Resource, request
 from app import db, Config
 from app.bases.rest.serializers import ModelSerializer
 from .decorators import *
+from app.bases.exceptions import ExceptionCaster
 
 __all__ = ['GenericView', 'CreateMixin', 'UpdateMixin',
            'GetMixin', 'DeleteMixin', 'ViewSetMixin']
@@ -20,11 +21,16 @@ class GenericView(Resource):
         authorize_decorator,
     ]
     serializer_class: ModelSerializer
+    lookup_field = 'id'
 
-    def handle_exception(self, exception: Exception):
+    @staticmethod
+    def handle_exception(exception: Exception):
+        db.session.rollback()
+
         if Config.DEBUG_MODE:
             raise exception
-        # TODO add exception handling
+        else:
+            return ExceptionCaster.cast_exception(exception).to_response()
 
     def dispatch_request(self, *args, **kwargs):
         meth = getattr(self, request.method.lower(), None)
@@ -32,7 +38,7 @@ class GenericView(Resource):
             meth = getattr(self, 'get', None)
         assert meth is not None, 'Unimplemented method %r' % request.method
 
-        for decorator in self.decorators:
+        for decorator in self.method_decorators:
             meth = decorator(meth)
 
         try:
