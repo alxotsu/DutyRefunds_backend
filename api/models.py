@@ -59,6 +59,7 @@ class EmailConfirm(db.Model):
 
     def update_key(self):
         self.key = generate_key(6)
+        self.created_at = datetime.utcnow()
 
     def __repr__(self):
         return f'Email "{self.email}" confirm for User {self.user_id}'

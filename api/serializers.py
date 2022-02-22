@@ -20,4 +20,20 @@ class UserSerializer(ModelSerializer):
 
         email_confirm_instance = EmailConfirm(user=instance, email=email)
 
-        return instance, email_confirm_instance
+        return instance
+
+    def update(self):
+        email = self.data.pop("email", None)
+        instance = super(UserSerializer, self).update()
+
+        if email:
+            if instance.email_confirm_obj:
+                email_confirm_instance = user.email_confirm_obj[0]
+                email_confirm_instance.update_key()
+            else:
+                email_confirm_instance = EmailConfirm(user=instance)
+
+            email_confirm_instance.email = email
+
+        return instance
+

@@ -8,11 +8,14 @@ __all__ = ['authorize_decorator', 'check_perms_decorator']
 def authorize_decorator(method: callable):
     def wrapper(*args, **kwargs):
         token = request.headers.get('Authorization', None)
-        token_model = models.Authtoken.query.get(token)
-        if token_model:
-            request.user = token_model.user
-        else:
+        if token is None:
             request.user = None
+        else:
+            token_model = models.Authtoken.query.get(token)
+            if token_model:
+                request.user = token_model.user
+            else:
+                request.user = None
 
         return method(*args, **kwargs)
     return wrapper

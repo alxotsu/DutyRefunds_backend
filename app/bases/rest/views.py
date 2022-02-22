@@ -9,7 +9,7 @@ from flask_restful import Resource, request
 from app import db, Config
 from app.bases.rest.serializers import ModelSerializer
 from .decorators import *
-from app.bases.exceptions import ExceptionCaster
+from app.bases.exceptions import *
 
 __all__ = ['GenericView', 'CreateMixin', 'UpdateMixin',
            'GetMixin', 'DeleteMixin', 'ViewSetMixin']
@@ -64,8 +64,13 @@ class GenericView(Resource):
         return self.serializer_class.model.query
 
     def get_object(self, *args, **kwargs):
-        return self.get_queryset(*args, **kwargs)\
+        result = self.get_queryset(*args, **kwargs)\
             .get(kwargs[self.lookup_field])
+
+        if result is None:
+            raise APIException(f"{self.serializer_class.model} is not found", 404)
+
+        return result
 
 
 class CreateMixin:
