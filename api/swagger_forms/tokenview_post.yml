@@ -1,6 +1,9 @@
+Get authorization token
+Use token from here in header 'Authorization'
+---
 parameters:
   - name: email
-    type: integer
+    type: string
     in: form
     required: true
   - name: key
@@ -18,6 +21,7 @@ responses:
           type: string
         user_id:
           type: integer
-  400: A wrong confirm key
+  400:
+    description: A wrong confirm key
   404:
     description: User is not found

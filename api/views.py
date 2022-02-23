@@ -40,9 +40,9 @@ class AccountsViewSet(GenericView, ViewSetMixin, CreateMixin):
         return serializer.serialize(), 201
 
     def post_perms(self, *args, **kwargs):
-        if User.query.filter_by(email=request.request_data['email']).all():
+        if User.query.filter_by(email=request.request_data['email']).first():
             raise APIException("User with this email already exist", 403)
-        for field in ("id", "email_verified", "subs_on_marketing", "signature", "role"):
+        for field in ("id", "subs_on_marketing", "signature", "role"):
             request.request_data.pop(field, None)
 
 
@@ -84,18 +84,21 @@ class AccountView(GenericView, GetMixin, UpdateMixin, DeleteMixin):
 
 
 class TokenView(GenericView):
-    serializer_class = UserSerializer
+    def get_object(self, *args, **kwargs):
+        email = request.request_data['email']
+        confirm_obj = EmailConfirm.query.filter_by(email=email).first()
+        if confirm_obj is None:
+            user = User.query.filter_by(email=email).one()
+            confirm_obj = EmailConfirm(email=email, user=user)
+        return confirm_obj
 
     @swag_from(Config.SWAGGER_FORMS + 'tokenview_get.yml')
     def get(self, *args, **kwargs):
-        user = self.get_object(*args, **kwargs)
-        if user.email_confirm_obj:
-            confirm_obj = user.email_confirm_obj[0]
-        else:
-            confirm_obj = EmailConfirm(user=user, email=user.email)
+        confirm_obj = self.get_object(*args, **kwargs)
+        confirm_obj.update_key()
 
-            db.session.add(confirm_obj)
-            db.session.commit()
+        db.session.add(confirm_obj)
+        db.session.commit()
 
         msg = Message("DutyRefunds confirm email",
                       sender=Config.MAIL_DEFAULT_SENDER,
@@ -107,16 +110,16 @@ class TokenView(GenericView):
 
     @swag_from(Config.SWAGGER_FORMS + 'tokenview_post.yml')
     def post(self, *args, **kwargs):
-        user = self.get_object(*args, **kwargs)
-        if user.email_confirm_obj[0].key == request.request_data["key"]:
-            user.email = user.email_confirm_obj[0].email
-            user.email_verified = True
+        confirm_obj = self.get_object(*args, **kwargs)
+        if confirm_obj.key == request.request_data["key"]:
+            confirm_obj.user.email = confirm_obj.email
             token = Authtoken(user=user)
 
-            db.session.add(user)
+            db.session.add(confirm_obj.user)
             db.session.add(token)
-            db.session.delete(user.email_confirm_obj[0])
+            db.session.delete(confirm_obj)
             db.session.commit()
+
             return {"token": token.key, "user_id": user.id}, 200
         else:
             return "Wrong key", 400

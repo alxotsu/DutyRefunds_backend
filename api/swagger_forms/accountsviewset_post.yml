@@ -1,3 +1,5 @@
+Registration endpoint
+---
 parameters:
   - name: username
     type: string

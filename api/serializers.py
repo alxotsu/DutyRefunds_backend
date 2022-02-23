@@ -8,10 +8,10 @@ __all__ = ['UserSerializer']
 
 class UserSerializer(ModelSerializer):
     model = User
-    fields = ["id", "username", "email", "email_verified",
-              "subs_on_marketing", "signature", "role"]
-    write_only_fields = ["email_verified", "role"]
-    read_only_fields = ["id", "role", "email_verified"]
+    fields = ["id", "username", "email", "subs_on_marketing",
+              "signature", "role"]
+    write_only_fields = ["role"]
+    read_only_fields = ["id", "role"]
 
     signature = FileSerializer("signatures/", "signature")
 

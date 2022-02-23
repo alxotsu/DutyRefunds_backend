@@ -17,7 +17,6 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.VARCHAR(32), nullable=False)
     email = db.Column(db.VARCHAR, index=True, unique=True, nullable=True)
-    email_verified = db.Column(db.Boolean, default=False, nullable=False)
     subs_on_marketing = db.Column(db.Boolean, default=False, nullable=False)
     signature = db.Column(db.VARCHAR)
     role = db.Column(db.SmallInteger, nullable=False, default=0)
@@ -49,7 +48,7 @@ class Authtoken(db.Model):
 class EmailConfirm(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"),
-                        nullable=False, unique=True)
+                        nullable=False)
     key = db.Column(db.VARCHAR(6), nullable=False, default=lambda: generate_key(6))
     email = db.Column(db.VARCHAR, index=True, unique=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

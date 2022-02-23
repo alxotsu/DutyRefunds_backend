@@ -1,11 +1,11 @@
 parameters:
   - name: page_number
     type: integer
-    in: params
+    in: query
     required: false
   - name: page_size
     type: integer
-    in: params
+    in: query
     required: false
 
 definitions:

@@ -2,7 +2,7 @@ Can use for login
 ---
 parameters:
   - name: email
-    type: integer
+    type: string
     in: form
     required: true
 
