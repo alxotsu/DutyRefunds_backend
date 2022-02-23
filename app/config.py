@@ -41,6 +41,7 @@ class Config:
     BASE_DIR = str(Path(__file__).resolve().parent.parent).replace(sep, '/')
 
     DEBUG_MODE = bool(int(getenv("DEBUG", 0)))
+    CSRF_ENABLED = True
 
     SQLALCHEMY_DATABASE_URI = f'postgresql+psycopg2://{getenv("DB_USER", "postgres")}:{environ["DB_PASSWORD"]}@{getenv("DB_URL", "localhost:5432")}/{environ["DB_NAME"]}'
     SQLALCHEMY_TRACK_MODIFICATIONS = False

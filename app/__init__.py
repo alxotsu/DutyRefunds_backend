@@ -1,5 +1,6 @@
 from flask import Flask
 from flask_restful import Api
+from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_mail import Mail
 
@@ -10,6 +11,7 @@ __all__ = ['app', 'db', 'api', 'mail' 'Config']
 
 app = Flask(__name__)
 app.config.from_object(Config)
+CORS(app)
 
 db = SQLAlchemy(app)
 
