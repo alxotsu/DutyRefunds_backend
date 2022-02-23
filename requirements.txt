@@ -9,3 +9,6 @@ psycopg2==2.9.3
 
 #debug
 flasgger==0.9.5
+
+#heroku
+gunicorn==20.1.0
