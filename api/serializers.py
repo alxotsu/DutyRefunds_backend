@@ -11,7 +11,7 @@ class UserSerializer(ModelSerializer):
     fields = ["id", "username", "email", "email_verified",
               "subs_on_marketing", "signature", "role"]
     write_only_fields = ["email_verified", "role"]
-    read_only_fields = ["id"]
+    read_only_fields = ["id", "role", "email_verified"]
 
     signature = FileSerializer("signatures/", "signature")
 

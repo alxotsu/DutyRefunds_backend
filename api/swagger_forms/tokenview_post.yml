@@ -1,0 +1,23 @@
+parameters:
+  - name: email
+    type: integer
+    in: form
+    required: true
+  - name: key
+    type: string
+    in: form
+    required: true
+
+
+responses:
+  200:
+    schema:
+      type: object
+      properties:
+        token:
+          type: string
+        user_id:
+          type: integer
+  400: A wrong confirm key
+  404:
+    description: User is not found

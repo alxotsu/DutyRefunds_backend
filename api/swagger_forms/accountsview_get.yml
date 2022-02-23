@@ -1,0 +1,11 @@
+parameters:
+  - name: id
+    type: integer
+    in: path
+    required: true
+responses:
+  200:
+    schema:
+      "$ref": "#/definitions/User"
+  404:
+    description: User is not found

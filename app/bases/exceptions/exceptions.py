@@ -1,3 +1,5 @@
+from werkzeug.exceptions import HTTPException
+
 __all__ = ['APIException', 'ExceptionCaster']
 
 
@@ -10,14 +12,13 @@ class APIException(Exception):
         return self.detail, self.code
 
 
-# def cast_rest_api_exception(exception):
-#     return APIException(exception.get_full_details())
+def cast_http_exception(exception):
+    return APIException(exception.__class__.__name__, exception.code)
 
 
 class ExceptionCaster:
     EXCEPTION_CAST = {
-        # ValidationError: cast_validation_error,
-        # RestAPIException: cast_rest_api_exception,
+        HTTPException: cast_http_exception,
     }
 
     @classmethod

@@ -1,0 +1,32 @@
+parameters:
+  - name: id
+    type: integer
+    in: path
+    required: true
+
+  - name: username
+    type: string
+    in: form
+    required: false
+  - name: email
+    type: string
+    in: form
+    required: false
+  - name: subs_on_marketing
+    type: boolean
+    in: form
+    required: false
+  - name: signature
+    type: string
+    format: uri
+    in: form
+    required: false
+
+responses:
+  200:
+    schema:
+      "$ref": "#/definitions/User"
+  403:
+    description: Not authorize or No access
+  404:
+    description: User is not found

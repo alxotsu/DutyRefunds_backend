@@ -1,0 +1,18 @@
+parameters:
+  - name: username
+    type: string
+    in: form
+    required: true
+  - name: email
+    type: string
+    in: form
+    required: true
+responses:
+  201:
+    description: The new user
+    schema:
+      $ref: "#/definitions/User"
+  400:
+    description: KeyError - missing requirement data
+  403:
+    description: User with your email already exist

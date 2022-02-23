@@ -48,6 +48,8 @@ class Config:
 
     UPLOAD_FOLDER = BASE_DIR + '/media/'
 
+    SWAGGER_FORMS = BASE_DIR + '/api/swagger_forms/'
+
     MAIL_SERVER = 'smtp.gmail.com'
     MAIL_PORT = 587
     MAIL_USE_TLS = True

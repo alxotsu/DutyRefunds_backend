@@ -1,0 +1,12 @@
+This method doesn't work in swagger ('^' )
+---
+parameters:
+  - name: path
+    in: path
+    required: true
+
+responses:
+  200:
+    description: Return a file with this path in media directory
+  404:
+    description: File is not found error

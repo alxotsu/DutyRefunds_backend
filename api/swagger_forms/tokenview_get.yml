@@ -1,0 +1,13 @@
+Can use for login
+---
+parameters:
+  - name: email
+    type: integer
+    in: form
+    required: true
+
+responses:
+  200:
+    description: (Re-)send confirm email message
+  404:
+    description: Email is not found
