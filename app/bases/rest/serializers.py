@@ -111,8 +111,9 @@ class FileSerializer:
     def update(self):
         result = self.create()
 
-        old_full_path = Config.UPLOAD_FOLDER + self.instance
-        remove(old_full_path)
+        if self.instance:
+            old_full_path = Config.UPLOAD_FOLDER + self.instance
+            remove(old_full_path)
 
         return result
 
