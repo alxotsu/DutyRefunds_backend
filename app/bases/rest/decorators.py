@@ -17,6 +17,8 @@ def data_extract_decorator(method: callable):
             request.request_data = data
         else:
             request.request_data = request.json
+        for field, value in request.args.items():
+            request.request_data[field] = value
         return method(*args, **kwargs)
     return wrapper
 
