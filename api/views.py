@@ -113,13 +113,13 @@ class TokenView(GenericView):
         confirm_obj = self.get_object(*args, **kwargs)
         if confirm_obj.key == request.request_data["key"]:
             confirm_obj.user.email = confirm_obj.email
-            token = Authtoken(user=user)
+            token = Authtoken(user=confirm_obj.user)
 
             db.session.add(confirm_obj.user)
             db.session.add(token)
             db.session.delete(confirm_obj)
             db.session.commit()
 
-            return {"token": token.key, "user_id": user.id}, 200
+            return {"token": token.key, "user_id": token.user_id}, 200
         else:
             return "Wrong key", 400

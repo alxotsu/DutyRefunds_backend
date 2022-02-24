@@ -69,7 +69,7 @@ class ModelSerializer:
                     continue
                 if hasattr(self, field):
                     getattr(self, field).data = data[field]
-                    getattr(self, field).instance = instance
+                    getattr(self, field).instance = getattr(instance, field)
                     data[field] = getattr(self, field).update()
                 setattr(instance, field, data[field])
 
@@ -111,8 +111,9 @@ class FileSerializer:
     def update(self):
         result = self.create()
 
-        old_full_path = Config.UPLOAD_FOLDER + self.instance
-        remove(old_fullpath)
+        if self.instance:
+            old_full_path = Config.UPLOAD_FOLDER + self.instance
+            remove(old_full_path)
 
         return result
 
