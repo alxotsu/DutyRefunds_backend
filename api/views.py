@@ -120,6 +120,6 @@ class TokenView(GenericView):
             db.session.delete(confirm_obj)
             db.session.commit()
 
-            return {"token": token.key, "user_id": user.id}, 200
+            return {"token": token.key, "user_id": token.user_id}, 200
         else:
             return "Wrong key", 400
