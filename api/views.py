@@ -1,3 +1,4 @@
+from datetime import datetime
 from flask import send_from_directory
 from flasgger import swag_from
 from flask_mail import Mail, Message
@@ -9,7 +10,7 @@ from api.serializers import *
 from api.models import db
 
 
-__all__ = ['FileView', 'AccountsViewSet', 'AccountView', 'TokenView']
+__all__ = ['FileView', 'AccountView', 'TokenView']
 
 
 class FileView(GenericView):
@@ -18,45 +19,46 @@ class FileView(GenericView):
         return send_from_directory(Config.UPLOAD_FOLDER, kwargs['path'])
 
 
-class AccountsViewSet(GenericView, ViewSetMixin, CreateMixin):
+class AccountView(GenericView, GetMixin, CreateMixin, UpdateMixin, DeleteMixin):
     serializer_class = UserSerializer
-
-    get = swag_from(Config.SWAGGER_FORMS + 'accountsviewset_get.yml')(ViewSetMixin.get)
-
-    @swag_from(Config.SWAGGER_FORMS + 'accountsviewset_post.yml')
-    def post(self, *args, **kwargs):
-        serializer = self.serializer_class(data=request.request_data)
-        instance = serializer.create()
-        db.session.add(instance)
-        db.session.commit()
-
-        msg = Message("DutyRefunds confirm email",
-                      sender=Config.MAIL_DEFAULT_SENDER,
-                      recipients=[instance.email_confirm_obj[0].email])
-        msg.body = f"Confirm email code:\n{instance.email_confirm_obj[0].key}"
-        mail.send(msg)
-
-        serializer.instance = instance
-        return serializer.serialize(), 201
-
-    def post_perms(self, *args, **kwargs):
-        if User.query.filter_by(email=request.request_data['email']).first():
-            raise APIException("User with this email already exist", 403)
-        for field in ("id", "subs_on_marketing", "signature", "role"):
-            request.request_data.pop(field, None)
-
-
-class AccountView(GenericView, GetMixin, UpdateMixin, DeleteMixin):
-    serializer_class = UserSerializer
-
     get = swag_from(Config.SWAGGER_FORMS + 'accountsview_get.yml')(GetMixin.get)
     delete = swag_from(Config.SWAGGER_FORMS + 'accountsview_delete.yml')(DeleteMixin.delete)
 
     @swag_from(Config.SWAGGER_FORMS + 'accountsview_put.yml')
     def put(self, *args, **kwargs):
+        return self._change('update')
+
+    @swag_from(Config.SWAGGER_FORMS + 'accountsview_post.yml')
+    def post(self, *args, **kwargs):
+        request.request_data["bank_name"] = request.request_data["username"]
+        request.request_data["timeline"] = {"registration": datetime.utcnow().isoformat()}
+        return self._change('create')
+
+    def put_perms(self, *args, **kwargs):
+        if "email" in request.request_data:
+            if User.query.filter_by(email=request.request_data['email']).first():
+                raise APIException("User with this email already exist", 403)
+        for field in ("subs_on_marketing", "bank_name",
+                      "card_number", "bank_code", "timeline"):
+            request.request_data.pop(field, None)
+
+    def post_perms(self, *args, **kwargs):
+        if User.query.filter_by(email=request.request_data['email']).first():
+            raise APIException("User with this email already exist", 403)
+        for field in ("timeline",):
+            request.request_data.pop(field, None)
+
+    def get_object(self, *args, **kwargs):
+        if request.method == 'POST':
+            return None
+        if request.user:
+            return request.user
+        raise APIException("Not authorized", 403)
+
+    def _change(self, method: str, *args, **kwargs):
         instance = self.get_object(*args, **kwargs)
         serializer = self.serializer_class(instance=instance, data=request.request_data)
-        instance = serializer.update()
+        instance = getattr(serializer, method)()
         db.session.add(instance)
         db.session.commit()
 
@@ -69,18 +71,6 @@ class AccountView(GenericView, GetMixin, UpdateMixin, DeleteMixin):
 
         serializer.instance = instance
         return serializer.serialize(), 200
-
-    def put_perms(self, *args, **kwargs):
-        if request.user is None:
-            raise APIException("Not authorize", 403)
-        if kwargs['id'] != request.user.id:
-            raise APIException("No Access", 403)
-
-    def delete_perms(self, *args, **kwargs):
-        if request.user is None:
-            raise APIException("Not authorize", 403)
-        if kwargs['id'] != request.user.id:
-            raise APIException("No Access", 403)
 
 
 class TokenView(GenericView):
@@ -115,7 +105,6 @@ class TokenView(GenericView):
             confirm_obj.user.email = confirm_obj.email
             token = Authtoken(user=confirm_obj.user)
 
-            db.session.add(confirm_obj.user)
             db.session.add(token)
             db.session.delete(confirm_obj)
             db.session.commit()

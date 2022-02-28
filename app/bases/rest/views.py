@@ -20,6 +20,7 @@ class GenericView(Resource):
         check_perms_decorator,
         authorize_decorator,
         data_extract_decorator,
+        cross_origin()
     ]
     serializer_class: ModelSerializer
     lookup_field = 'id'
@@ -111,7 +112,7 @@ class DeleteMixin:
         db.session.delete(instance)
         db.session.commit()
 
-        return None, 204
+        return "Ok", 204
 
 
 class ViewSetMixin:

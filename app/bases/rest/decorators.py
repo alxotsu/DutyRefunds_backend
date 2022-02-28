@@ -1,9 +1,10 @@
 from flask import request
 from app import db
 from api import models
+from flask_cors import cross_origin
 
 __all__ = ['data_extract_decorator', 'authorize_decorator',
-           'check_perms_decorator']
+           'check_perms_decorator', 'cross_origin']
 
 
 def data_extract_decorator(method: callable):

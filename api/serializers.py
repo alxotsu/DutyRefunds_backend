@@ -9,11 +9,9 @@ __all__ = ['UserSerializer']
 class UserSerializer(ModelSerializer):
     model = User
     fields = ["id", "username", "email", "subs_on_marketing",
-              "signature", "role"]
-    write_only_fields = ["role"]
+              "role", "bank_name", "card_number", "bank_code",
+              "timeline"]
     read_only_fields = ["id", "role"]
-
-    signature = FileSerializer("signatures/", "signature")
 
     def create(self):
         email = self.data.pop("email")
