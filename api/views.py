@@ -1,3 +1,4 @@
+from datetime import datetime
 from flask import send_from_directory
 from flasgger import swag_from
 from flask_mail import Mail, Message
@@ -48,11 +49,13 @@ class AccountView(GenericView, GetMixin, CreateMixin, UpdateMixin, DeleteMixin):
             request.request_data.pop(field, None)
 
     def get_object(self, *args, **kwargs):
+        if request.method == 'POST':
+            return None
         if request.user:
             return request.user
         raise APIException("Not authorized", 403)
 
-    def _change(self, method: str):
+    def _change(self, method: str, *args, **kwargs):
         instance = self.get_object(*args, **kwargs)
         serializer = self.serializer_class(instance=instance, data=request.request_data)
         instance = getattr(serializer, method)()
@@ -102,7 +105,7 @@ class TokenView(GenericView):
             confirm_obj.user.email = confirm_obj.email
             token = Authtoken(user=confirm_obj.user)
 
-            db.session.add(confirm_obj.user)
+            db.session.add(token)
             db.session.delete(confirm_obj)
             db.session.commit()
 

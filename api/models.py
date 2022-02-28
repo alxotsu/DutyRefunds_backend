@@ -9,8 +9,8 @@ __all__ = ['User', 'Authtoken', 'EmailConfirm', 'Courier', 'Case', 'Document']
 CHARS_POOL = string.ascii_lowercase + string.ascii_uppercase + string.digits
 
 
-def generate_key(length: int):
-    return ''.join(sample(CHARS_POOL, length))
+def generate_key(length: int, chars_pool=CHARS_POOL):
+    return ''.join(sample(chars_pool, length))
 
 
 class User(db.Model):
@@ -53,14 +53,14 @@ class EmailConfirm(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"),
                         nullable=False)
-    key = db.Column(db.VARCHAR(6), nullable=False, default=lambda: generate_key(6))
+    key = db.Column(db.VARCHAR(6), nullable=False, default=lambda: generate_key(6, '1234567890'))
     email = db.Column(db.VARCHAR, index=True, unique=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     user = db.relationship('User', backref='email_confirm_obj')
 
     def update_key(self):
-        self.key = generate_key(6)
+        self.key = generate_key(6, '1234567890')
         self.created_at = datetime.utcnow()
 
     def __repr__(self):
