@@ -38,14 +38,14 @@ class AccountView(GenericView, GetMixin, CreateMixin, UpdateMixin, DeleteMixin):
         if "email" in request.request_data:
             if User.query.filter_by(email=request.request_data['email']).first():
                 raise APIException("User with this email already exist", 403)
-        for field in ("subs_on_marketing", "bank_name",
-                      "card_number", "bank_code", "timeline"):
+        for field in ("timeline",):
             request.request_data.pop(field, None)
 
     def post_perms(self, *args, **kwargs):
         if User.query.filter_by(email=request.request_data['email']).first():
             raise APIException("User with this email already exist", 403)
-        for field in ("timeline",):
+        for field in ("bank_name", "card_number",
+                      "bank_code", "timeline"):
             request.request_data.pop(field, None)
 
     def get_object(self, *args, **kwargs):
