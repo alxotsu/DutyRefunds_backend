@@ -1,8 +1,4 @@
 parameters:
-  - name: id
-    type: integer
-    in: path
-    required: true
 
   - name: username
     type: string
@@ -16,12 +12,18 @@ parameters:
     type: boolean
     in: form
     required: false
-  - name: signature
+  - name: bank_name
     type: string
-    format: uri
     in: form
     required: false
-
+  - name: card_number
+    type: string
+    in: form
+    required: false
+  - name: bank_code
+    type: string
+    in: form
+    required: false
 responses:
   200:
     schema:
