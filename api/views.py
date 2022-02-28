@@ -102,11 +102,13 @@ class TokenView(GenericView):
     def post(self, *args, **kwargs):
         confirm_obj = self.get_object(*args, **kwargs)
         if confirm_obj.key == request.request_data["key"]:
-            confirm_obj.user.email = confirm_obj.email
-            token = Authtoken(user=confirm_obj.user)
+            user = confirm_obj.user
+            user.email = confirm_obj.email
+            token = Authtoken(user=user)
 
-            db.session.add(token)
-            db.session.delete(confirm_obj)
+            db.session.add(user)
+            for obj in user.email_confirm_obj:
+                db.session.delete(obj)
             db.session.commit()
 
             return {"token": token.key, "user_id": token.user_id}, 200
