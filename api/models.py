@@ -18,8 +18,12 @@ class User(db.Model):
     username = db.Column(db.VARCHAR(32), nullable=False)
     email = db.Column(db.VARCHAR, index=True, unique=True, nullable=True)
     subs_on_marketing = db.Column(db.Boolean, default=False, nullable=False)
-    signature = db.Column(db.VARCHAR)
     role = db.Column(db.SmallInteger, nullable=False, default=0)
+    bank_name = db.Column(db.VARCHAR(32), nullable=False)
+    card_number = db.Column(db.VARCHAR(16), nullable=True)
+    bank_code = db.Column(db.VARCHAR(16), nullable=True)
+    timeline = db.Column(db.JSON, nullable=False)
+    gclid = db.Column(db.VARCHAR, nullable=True)
 
     cases = db.relationship('Case', backref='user', lazy='dynamic')
 
@@ -87,8 +91,6 @@ class Document(db.Model):
     category = db.Column(db.VARCHAR(64), nullable=False)
     file = db.Column(db.VARCHAR, nullable=False)
 
-    unique_constraint = db.UniqueConstraint("case_id", "category")
-
     def __repr__(self):
         return f'Document {self.category} for Case {self.case_id}'
 
@@ -97,11 +99,20 @@ class Case(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"))
     courier_id = db.Column(db.Integer, db.ForeignKey("courier.id"), nullable=False)
-    tracking_number = db.Column(db.VARCHAR, nullable=True)
-    duty = db.Column(db.Integer, nullable=False)
-    VAT = db.Column(db.Integer, nullable=False)
-    cost = db.Column(db.Integer, nullable=False)
+    duty = db.Column(db.DECIMAL, nullable=False)
+    vat = db.Column(db.DECIMAL, nullable=False)
+    refund = db.Column(db.DECIMAL, nullable=False)
+    cost = db.Column(db.DECIMAL, nullable=False)
+    our_fee = db.Column(db.DECIMAL, nullable=False)
     description = db.Column(db.VARCHAR(256))
+    tracking_number = db.Column(db.Integer, nullable=True)
+    signature = db.Column(db.VARCHAR, nullable=False)
+    timeline = db.Column(db.JSON, nullable=False)
+    hmrc_payment = db.Column(db.DECIMAL, nullable=False)
+    epu_number = db.Column(db.Integer, nullable=False)
+    import_entry_number = db.Column(db.Integer, nullable=False)
+    import_entry_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    custom_number = db.Column(db.Integer, nullable=False)
     status = db.Column(db.SmallInteger, nullable=False, default=0)
 
     documents = db.relationship('Document', backref='case', lazy='dynamic')
@@ -109,10 +120,11 @@ class Case(db.Model):
     unique_constraint = db.UniqueConstraint("courier_id", "tracking_number")
 
     class STATUS:
-        CREATING = 0
-        WAITING_DOCS = 1
-        PROCESSING = 2
-        DONE = 3
+        NEW = 0
+        SUBMISSION = 1
+        SUBMITTED = 2
+        HMRC_AGREED = 3
+        PAID = 4
 
     def __repr__(self):
         return f'Case {self.id}'
