@@ -1,28 +1,29 @@
+from decimal import Decimal
 
 __all__ = ['CALCULATORS']
 
 
-def dhl_calc(duty: int, vat: int) -> int:
-    return max(1100, int(0.025*(duty + vat)))
+def dhl_calc(duty: decimal, vat: decimal) -> decimal:
+    return max(11, Decimal("0.025")*(duty + vat))
 
 
-def dpd_calc(duty: int, vat: int) -> int:
-    return 500
+def dpd_calc(duty: decimal, vat: decimal) -> decimal:
+    return 5
 
 
-def fedex_calc(duty: int, vat: int) -> int:
-    return max(1200, int(0.025*(duty + vat)))
+def fedex_calc(duty: decimal, vat: decimal) -> decimal:
+    return max(12, Decimal("0.025")*(duty + vat))
 
 
-def parcelforce_calc(duty: int, vat: int) -> int:
-    return 800
+def parcelforce_calc(duty: decimal, vat: decimal) -> decimal:
+    return 8
 
 
-def ups_calc(duty: int, vat: int) -> int:
-    return max(1150, int(0.025*(duty + vat)))
+def ups_calc(duty: decimal, vat: decimal) -> decimal:
+    return max(Decimal("11.50"), Decimal("0.025")*(duty + vat))
 
 
-def other_calc(duty: int, vat: int) -> int:
+def other_calc(duty: decimal, vat: decimal) -> decimal:
     return 0
 
 

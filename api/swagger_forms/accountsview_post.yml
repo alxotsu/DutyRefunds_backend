@@ -17,4 +17,4 @@ responses:
   400:
     description: KeyError - missing requirement data
   403:
-    description: User with your email already exist
+    description: User with this email already exist

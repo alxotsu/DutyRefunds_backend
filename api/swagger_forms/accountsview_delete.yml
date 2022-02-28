@@ -1,12 +1,5 @@
-parameters:
-  - name: id
-    type: integer
-    in: path
-    required: true
 responses:
   204:
     description: Deletion successful
   403:
-    description: Not authorize or No access
-  404:
-    description: User is not found
+    description: Not authorized
