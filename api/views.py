@@ -15,8 +15,8 @@ __all__ = ['FileView', 'AccountView', 'TokenView']
 
 class FileView(GenericView):
     @swag_from(Config.SWAGGER_FORMS + 'fileview_get.yml')
-    def get(self, *args, **kwargs):
-        return send_from_directory(Config.UPLOAD_FOLDER, kwargs['path'])
+    def get(self, path):
+        return send_from_directory(Config.UPLOAD_FOLDER, path)
 
 
 class AccountView(GenericView, GetMixin, CreateMixin, UpdateMixin, DeleteMixin):
@@ -34,29 +34,29 @@ class AccountView(GenericView, GetMixin, CreateMixin, UpdateMixin, DeleteMixin):
         request.request_data["timeline"] = {"registration": datetime.utcnow().isoformat()}
         return self._change('create')
 
-    def put_perms(self, *args, **kwargs):
+    def put_perms(self):
         if "email" in request.request_data:
             if User.query.filter_by(email=request.request_data['email']).first():
                 raise APIException("User with this email already exist", 403)
         for field in ("timeline",):
             request.request_data.pop(field, None)
 
-    def post_perms(self, *args, **kwargs):
+    def post_perms(self):
         if User.query.filter_by(email=request.request_data['email']).first():
             raise APIException("User with this email already exist", 403)
         for field in ("bank_name", "card_number",
                       "bank_code", "timeline"):
             request.request_data.pop(field, None)
 
-    def get_object(self, *args, **kwargs):
+    def get_object(self):
         if request.method == 'POST':
             return None
         if request.user:
             return request.user
         raise APIException("Not authorized", 403)
 
-    def _change(self, method: str, *args, **kwargs):
-        instance = self.get_object(*args, **kwargs)
+    def _change(self, method: str):
+        instance = self.get_object()
         serializer = self.serializer_class(instance=instance, data=request.request_data)
         instance = getattr(serializer, method)()
         db.session.add(instance)
@@ -74,7 +74,7 @@ class AccountView(GenericView, GetMixin, CreateMixin, UpdateMixin, DeleteMixin):
 
 
 class TokenView(GenericView):
-    def get_object(self, *args, **kwargs):
+    def get_object(self):
         email = request.request_data['email']
         confirm_obj = EmailConfirm.query.filter_by(email=email).first()
         if confirm_obj is None:
@@ -83,8 +83,8 @@ class TokenView(GenericView):
         return confirm_obj
 
     @swag_from(Config.SWAGGER_FORMS + 'tokenview_get.yml')
-    def get(self, *args, **kwargs):
-        confirm_obj = self.get_object(*args, **kwargs)
+    def get(self):
+        confirm_obj = self.get_object()
         confirm_obj.update_key()
 
         db.session.add(confirm_obj)
@@ -99,14 +99,14 @@ class TokenView(GenericView):
         return None, 200
 
     @swag_from(Config.SWAGGER_FORMS + 'tokenview_post.yml')
-    def post(self, *args, **kwargs):
-        confirm_obj = self.get_object(*args, **kwargs)
+    def post(self):
+        confirm_obj = self.get_object()
         if confirm_obj.key == request.request_data["key"]:
             user = confirm_obj.user
             user.email = confirm_obj.email
             token = Authtoken(user=user)
 
-            db.session.add(user)
+            db.session.add(token)
             for obj in user.email_confirm_obj:
                 db.session.delete(obj)
             db.session.commit()
