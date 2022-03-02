@@ -105,7 +105,7 @@ class Case(db.Model):
     cost = db.Column(db.DECIMAL, nullable=False)
     our_fee = db.Column(db.DECIMAL, nullable=False)
     description = db.Column(db.VARCHAR(256))
-    tracking_number = db.Column(db.Integer, nullable=True)
+    tracking_number = db.Column(db.VARCHAR(12), nullable=True)
     signature = db.Column(db.VARCHAR, nullable=False)
     timeline = db.Column(db.JSON, nullable=False)
     hmrc_payment = db.Column(db.DECIMAL, nullable=False)

@@ -114,3 +114,16 @@ class TokenView(GenericView):
             return {"token": token.key, "user_id": token.user_id}, 200
         else:
             return "Wrong key", 400
+
+class CaseCreateView(GenericView, CreateMixin):
+    @swag_from(Config.SWAGGER_FORMS + 'CaseCreateView_get.yml')
+    def get(self):
+        pass
+
+    @swag_from(Config.SWAGGER_FORMS + 'CaseCreateView_get.yml')
+    def post(self):
+        pass
+
+    def post_perms(self):
+        if request.user is None:
+            raise APIException("Not authorized", 403)
