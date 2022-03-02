@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import send_from_directory
 from flasgger import swag_from
 from flask_mail import Mail, Message
@@ -85,6 +85,8 @@ class TokenView(GenericView):
     @swag_from(Config.SWAGGER_FORMS + 'tokenview_get.yml')
     def get(self):
         confirm_obj = self.get_object()
+        if datetime.utcnow() - confirm_obj.created_at < timedelta(minutes=1):
+            raise APIException("Key was created less than minute ago.", 403)
         confirm_obj.update_key()
 
         db.session.add(confirm_obj)
@@ -96,11 +98,15 @@ class TokenView(GenericView):
         msg.body = f"Confirm email code:\n{confirm_obj.key}"
         mail.send(msg)
 
-        return None, 200
+        return "Ok", 200
 
     @swag_from(Config.SWAGGER_FORMS + 'tokenview_post.yml')
     def post(self):
         confirm_obj = self.get_object()
+        if datetime.utcnow() - confirm_obj.created_at > timedelta(minutes=5):
+            db.session.delete(confirm_obj)
+            db.session.commit()
+            raise APIException("Key has expired.", 403)
         if confirm_obj.key == request.request_data["key"]:
             user = confirm_obj.user
             user.email = confirm_obj.email
