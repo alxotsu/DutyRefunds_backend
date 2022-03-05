@@ -72,10 +72,12 @@ class Courier(db.Model):
     name = db.Column(db.VARCHAR(64), nullable=False, unique=True)
     required_documents = db.Column(db.JSON)
 
+    cases = db.relationship('Case', backref='courier', lazy='dynamic')
+
     def __repr__(self):
         return f'Courier "{self.name}"'
 
-    def calc_cost(self, duty: int, vat: int) -> int:
+    def calc_cost(self, duty: decimal, vat: decimal) -> decimal:
         from api.calculators import CALCULATORS
         calculator = CALCULATORS[self.name] \
             if self.name in CALCULATORS \
@@ -89,7 +91,11 @@ class Document(db.Model):
     case_id = db.Column(db.Integer, db.ForeignKey("case.id", ondelete="CASCADE"),
                         nullable=False)
     category = db.Column(db.VARCHAR(64), nullable=False)
-    file = db.Column(db.VARCHAR, nullable=False)
+    files = db.Column(db.ARRAY(VARCHAR), nullable=False, default=list())
+    allowed_types = db.Column(db.ARRAY(VARCHAR), nullable=False)
+    required = db.Column(db.Boolean, nullable=False)
+
+    unique_constraint = db.UniqueConstraint("case_id", "category")
 
     def __repr__(self):
         return f'Document {self.category} for Case {self.case_id}'
@@ -103,21 +109,19 @@ class Case(db.Model):
     vat = db.Column(db.DECIMAL, nullable=False)
     refund = db.Column(db.DECIMAL, nullable=False)
     cost = db.Column(db.DECIMAL, nullable=False)
-    our_fee = db.Column(db.DECIMAL, nullable=False)
-    description = db.Column(db.VARCHAR(256))
-    tracking_number = db.Column(db.VARCHAR(12), nullable=True)
+    service_fee = db.Column(db.DECIMAL, nullable=False)
+    description = db.Column(db.VARCHAR(256), nullable=False)
+    tracking_number = db.Column(db.VARCHAR(12), nullable=False)
     signature = db.Column(db.VARCHAR, nullable=False)
     timeline = db.Column(db.JSON, nullable=False)
-    hmrc_payment = db.Column(db.DECIMAL, nullable=False)
-    epu_number = db.Column(db.Integer, nullable=False)
-    import_entry_number = db.Column(db.Integer, nullable=False)
-    import_entry_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    custom_number = db.Column(db.Integer, nullable=False)
+    hmrc_payment = db.Column(db.DECIMAL, nullable=True)
+    epu_number = db.Column(db.Integer, nullable=True)
+    import_entry_number = db.Column(db.Integer, nullable=True)
+    import_entry_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=True)
+    custom_number = db.Column(db.Integer, nullable=True)
     status = db.Column(db.SmallInteger, nullable=False, default=0)
 
     documents = db.relationship('Document', backref='case', lazy='dynamic')
-
-    unique_constraint = db.UniqueConstraint("courier_id", "tracking_number")
 
     class STATUS:
         NEW = 0

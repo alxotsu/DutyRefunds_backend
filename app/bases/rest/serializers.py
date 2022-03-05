@@ -83,37 +83,65 @@ class ModelSerializer:
 
 
 class FileSerializer:
-    def __init__(self, path: str, name_prefix: str, allowed_files=('.jpg', '.pdf')):
+    def __init__(self, path: str, name_prefix: str,
+                 allowed_files=('.jpg', '.pdf'), many=False):
         self.path = path
         self.name_prefix = name_prefix
         self.allowed_files = allowed_files
         self.instance = None
         self.data = None
+        self.many = many
 
     def serialize(self):
         return self.instance
 
     def create(self):
-        file = request.request_data[self.name_prefix]
+        if self.many:
+            files = list()
+            i = 0
+            time_postfix = datetime.utcnow().isoformat().replace(':', '-')
+            full_path = Config.UPLOAD_FOLDER + self.path
 
-        file_res = '.' + secure_filename(file.filename).split('.')[-1]
-        full_path = Config.UPLOAD_FOLDER + self.path
-        filename = self.name_prefix + datetime.utcnow().isoformat().replace(':', '-') + file_res
+            for file in request.request_data[self.name_prefix]:
+                i += 1
+                file_res = '.' + secure_filename(file.filename).split('.')[-1]
+                filename = self.name_prefix + time_postfix + f"({i})" + file_res
 
-        if file_res not in self.allowed_files:
-            raise APIException(f"Forbidden file type. {self.allowed_files} only", 403)
+                if file_res not in self.allowed_files:
+                    raise APIException(f"Forbidden file type. {self.allowed_files} only", 403)
+                files.append((file, filename))
 
-        Path(full_path).mkdir(parents=True, exist_ok=True)
-        file.save(full_path + filename)
+            Path(full_path).mkdir(parents=True, exist_ok=True)
+            result = list()
+            for file_obj in files:
+                file_obj[0].save(full_path + file_obj[1])
+                result.append(self.path + file_obj[1])
+            return result
 
-        return self.path + filename
+        else:
+            file = request.request_data[self.name_prefix]
+
+            file_res = '.' + secure_filename(file.filename).split('.')[-1]
+            full_path = Config.UPLOAD_FOLDER + self.path
+            filename = self.name_prefix + datetime.utcnow().isoformat().replace(':', '-') + file_res
+
+            if file_res not in self.allowed_files:
+                raise APIException(f"Forbidden file type. {self.allowed_files} only", 403)
+
+            Path(full_path).mkdir(parents=True, exist_ok=True)
+            file.save(full_path + filename)
+
+            return self.path + filename
 
     def update(self):
         result = self.create()
 
         if self.instance:
-            old_full_path = Config.UPLOAD_FOLDER + self.instance
-            remove(old_full_path)
+            if many:
+                result = self.instance + result
+            else:
+                old_full_path = Config.UPLOAD_FOLDER + self.instance
+                remove(old_full_path)
 
         return result
 
