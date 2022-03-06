@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import requests
 from flask import send_from_directory
 from flasgger import swag_from
 from flask_mail import Mail, Message
@@ -8,9 +9,11 @@ from app import mail, Config
 from api.models import Authtoken, User, EmailConfirm
 from api.serializers import *
 from api.models import db
+from api.models import *
 
 
-__all__ = ['FileView', 'AccountView', 'TokenView']
+__all__ = ['FileView', 'AccountView', 'TokenView', 'CaseCreateView',
+           'CaseEditorView']
 
 
 class FileView(GenericView):
@@ -120,3 +123,96 @@ class TokenView(GenericView):
             return {"token": token.key, "user_id": token.user_id}, 200
         else:
             return "Wrong key", 400
+
+
+class CaseCreateView(GenericView, GetMixin, CreateMixin):
+    serializer_class = CaseSerializer
+
+    @swag_from(Config.SWAGGER_FORMS + 'CaseCreateView_get.yml')
+    def get(self):
+        response = requests.post('https://www.api.simplyduty.com/api/duty/gethscode',
+                                 headers={"x-api-key": Config.SIMPLE_DUTY_KEY},
+                                 json={
+                                     "FullDescription": request.request_data["description"],
+                                     "OriginCountryCode": "IT",
+                                     "DestinationCountryCode": "GB"
+                                 }).json()
+        if "error" in response:
+            raise APIException(response.json()["error"]["code"], 500)
+
+        response = requests.post('https://www.api.simplyduty.com/api/duty/calculate',
+                                 headers={"x-api-key": Config.SIMPLE_DUTY_KEY},
+                                 json={
+                                     "OriginCountryCode": "IT",
+                                     "DestinationCountryCode": "GB",
+                                     "HSCode": response["HSCode"],
+                                     "Quantity": 1,
+                                     "Value": request.request_data["cost"],
+                                     "Shipping": 0,
+                                     "Insurance": 0,
+                                     "OriginCurrencyCode": "GBP",
+                                     "DestinationCurrencyCode": "GBP",
+                                     "ContractInsuranceType": "cIF",
+                                 }).json()
+        if "error" in response:
+            raise APIException(response.json()["error"]["code"], 500)
+
+        courier = Courier.query.filter_by(name=request.request_data['courier_name']).one()
+        response = {
+            "duty": response["Duty"],
+            "duty_rate": response["Duty"] / request.request_data["cost"],
+            "vat": response["VAT"],
+            "courier_fee": courier.calc_cost(response["Duty"], response["VAT"]),
+            "duty_owned": response["Duty"] + response["VAT"],
+            "service_fee": (response["Duty"] + response["VAT"])*0.15,
+            "get_back": (response["Duty"] + response["VAT"])*0.85
+        }
+        return response, 200
+
+    @swag_from(Config.SWAGGER_FORMS + 'CaseCreateView_post.yml')
+    def post(self):
+        response = self.get()[0]
+        courier = Courier.query.filter_by(name=request.request_data['courier_name']).one()
+        request.request_data = {
+            "user_id": request.user.id,
+            "courier": courier,
+            "duty": response["duty_rate"],
+            "vat": response["vat"],
+            "refund": response["get_back"],
+            "cost": request.request_data["cost"],
+            "service_fee": response["service_fee"],
+            "description": request.request_data["description"],
+            "tracking_number": request.request_data["tracking_number"],
+        }
+        return super(CaseCreateView, self).post()
+
+    def post_perms(self):
+        if request.user is None:
+            raise APIException("Not authorized", 403)
+
+
+class CaseEditorView(GenericView, GetMixin, UpdateMixin):
+    serializer_class = CaseSerializer
+
+    get = swag_from(Config.SWAGGER_FORMS + 'CaseEditorView_get.yml')(GetMixin.get)
+    put = swag_from(Config.SWAGGER_FORMS + 'CaseEditorView_put.yml')(UpdateMixin.put)
+
+    def get_perms(self, id):
+        if request.user is None:
+            raise APIException("Not authorized", 403)
+        case = self.get_object(id=id)
+        if case.user_id != request.user.id:
+            raise APIException("Not your case", 403)
+
+    def put_perms(self, id):
+        self.get_perms(id)
+        case = self.get_object(id=id)
+        if case.status != Case.STATUS.NEW:
+            raise APIException("You can not edit this case", 403)
+
+        for field in ("user_id", "courier", "duty", "vat",
+                      "refund", "cost", "service_fee", "description",
+                      "tracking_number", "timeline", "hmrc_payment",
+                      "epu_number", "import_entry_number", "import_entry_date",
+                      "custom_number", "status",):
+            request.request_data.pop(field, None)

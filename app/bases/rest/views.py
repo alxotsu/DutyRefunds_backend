@@ -65,14 +65,18 @@ class GenericView(Resource):
     def get_queryset(self,  *args, **kwargs):
         return self.serializer_class.model.query
 
+    _object = None
+
     def get_object(self, *args, **kwargs):
-        result = self.get_queryset(*args, **kwargs)\
+        if self._object:
+            return self._object
+        self._object = self.get_queryset(*args, **kwargs)\
             .get(kwargs[self.lookup_field])
 
-        if result is None:
+        if self._object is None:
             raise APIException(f"{self.serializer_class.model} is not found", 404)
 
-        return result
+        return self._object
 
 
 class CreateMixin:
