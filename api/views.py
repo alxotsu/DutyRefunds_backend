@@ -138,7 +138,7 @@ class CaseCreateView(GenericView, GetMixin, CreateMixin):
                                      "DestinationCountryCode": "GB"
                                  }).json()
         if "error" in response:
-            raise APIException(response.json()["error"]["code"], 500)
+            raise APIException(response["error"]["code"], 500)
 
         response = requests.post('https://www.api.simplyduty.com/api/duty/calculate',
                                  headers={"x-api-key": Config.SIMPLE_DUTY_KEY},
@@ -155,7 +155,7 @@ class CaseCreateView(GenericView, GetMixin, CreateMixin):
                                      "ContractInsuranceType": "cIF",
                                  }).json()
         if "error" in response:
-            raise APIException(response.json()["error"]["code"], 500)
+            raise APIException(response["error"]["code"], 500)
 
         courier = Courier.query.filter_by(name=request.request_data['courier_name']).one()
         response = {
