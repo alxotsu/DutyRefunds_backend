@@ -4,46 +4,33 @@ parameters:
     in: form
     required: true
   - name: cost
-    type: float
+    type: number
     in: form
     required: true
-  - name: traking_number
-    type: string
-    maxLength: 12
-    in: form
-    required: false
   - name: description
     type: string
     in: form
     maxLength: 256
     required: true
 
-definitions:
-  CreateCaseResponse:
-    type: object
-    properties:
-      duty:
-        type: float
-        example: 8.21
-      vat:
-        type: float
-        example: 40.00
-      courier_fee:
-        type: float
-        example: 11.00
-      service_fee:
-        type: float
-        example: 4.53
-      user_owned:
-        type: float
-        example: 38.21
-      user_refund:
-        type: float
-        example: 33.12
-
 responses:
   200:
     schema:
-      "$ref": "#/definitions/User"
+      type: object
+      properties:
+        duty:
+          type: number
+        duty_rate:
+          type: number
+        vat:
+          type: number
+        courier_fee:
+          type: number
+        duty_owned:
+          type: number
+        service_fee:
+          type: number
+        get_back:
+          type: number
   404:
     description: Curier does not exist

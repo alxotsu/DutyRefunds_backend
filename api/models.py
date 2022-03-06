@@ -1,5 +1,5 @@
 from random import sample
-import string
+import string, decimal
 from datetime import datetime
 
 from app import db
@@ -91,8 +91,8 @@ class Document(db.Model):
     case_id = db.Column(db.Integer, db.ForeignKey("case.id", ondelete="CASCADE"),
                         nullable=False)
     category = db.Column(db.VARCHAR(64), nullable=False)
-    files = db.Column(db.ARRAY(VARCHAR), nullable=False, default=list())
-    allowed_types = db.Column(db.ARRAY(VARCHAR), nullable=False)
+    files = db.Column(db.ARRAY(db.VARCHAR), nullable=False, default=list())
+    allowed_types = db.Column(db.ARRAY(db.VARCHAR), nullable=False)
     required = db.Column(db.Boolean, nullable=False)
 
     unique_constraint = db.UniqueConstraint("case_id", "category")
@@ -112,7 +112,7 @@ class Case(db.Model):
     service_fee = db.Column(db.DECIMAL, nullable=False)
     description = db.Column(db.VARCHAR(256), nullable=False)
     tracking_number = db.Column(db.VARCHAR(12), nullable=False)
-    signature = db.Column(db.VARCHAR, nullable=False)
+    signature = db.Column(db.VARCHAR, nullable=True)
     timeline = db.Column(db.JSON, nullable=False)
     hmrc_payment = db.Column(db.DECIMAL, nullable=True)
     epu_number = db.Column(db.Integer, nullable=True)
