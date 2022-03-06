@@ -1,4 +1,81 @@
 from api.models import db
 from api.models import *
 
-db.create_all()
+if __name__ == '__main__':
+    db.create_all()
+
+    couriers = [
+        Courier(name="UPS", required_documents={
+            "proof_of_refund": {
+                "types": [
+                    ".pdf", ".jpg"
+                ],
+                "required": True
+            }
+        }),
+        Courier(name="DHL", required_documents={
+            "proof_of_refund": {
+                "types": [
+                    ".pdf", ".jpg"
+                ],
+                "required": True
+            }
+        }),
+        Courier(name="Fedex", required_documents={
+            "proof_of_refund": {
+                "types": [
+                    ".pdf", ".jpg"
+                ],
+                "required": True
+            },
+            "duty_tax_invoice": {
+                "types": [
+                    ".pdf", ".jpg"
+                ],
+                "required": True
+            },
+            "supplementary_declaration_acceptance_advice": {
+                "types": [
+                    ".pdf", ".jpg"
+                ],
+                "required": True
+            },
+            "commercial_invoice": {
+                "types": [
+                    ".pdf", ".jpg"
+                ],
+                "required": True
+            }
+        }),
+        Courier(name="Parcelforce", required_documents={
+            "proof_of_refund": {
+                "types": [
+                    ".pdf", ".jpg"
+                ],
+                "required": True
+            },
+            "duty_tax_invoice": {
+                "types": [
+                    ".pdf", ".jpg"
+                ],
+                "required": True
+            },
+            "supplementary_declaration_acceptance_advice": {
+                "types": [
+                    ".pdf", ".jpg"
+                ],
+                "required": True
+            },
+            "commercial_invoice": {
+                "types": [
+                    ".pdf", ".jpg"
+                ],
+                "required": True
+            }
+        })
+    ]
+
+    for courier in couriers:
+        db.session.add(courier)
+
+    db.session.commit()

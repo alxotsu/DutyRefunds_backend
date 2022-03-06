@@ -1,0 +1,101 @@
+parameters:
+  - name: courier_name
+    type: string
+    in: form
+    required: true
+  - name: cost
+    type: number
+    in: form
+    required: true
+  - name: traking_number
+    type: string
+    maxLength: 12
+    in: form
+    required: true
+  - name: description
+    type: string
+    in: form
+    maxLength: 256
+    required: true
+
+definitions:
+  Case:
+    type: object
+    properties:
+      id:
+        type: integer
+      courier:
+        type: object
+        properties:
+          id:
+            type: integer
+          name:
+            type: string
+      duty:
+        type: float
+      vat:
+        type: float
+      refund:
+        type: float
+      cost:
+        type: float
+      service_fee:
+        type: float
+      description:
+        type: string
+      tracking_number:
+        type: string
+      signature:
+        type: string
+      timeline:
+        type: object
+        properties:
+          created:
+            type: string
+          docs_upload:
+            type: string
+          evidence_of_compensation:
+            type: string
+          hmrc_request:
+            type: string
+          hmrc_response:
+            type: string
+          done:
+            type: string
+      hmrc_payment:
+        type: float
+      epu_number:
+        type: integer
+      import_entry_number:
+        type: integer
+      import_entry_date:
+        type: string
+      custom_number:
+        type: integer
+      status:
+        type: integer
+      documents:
+        type: array
+        items:
+          type: object
+          properties:
+            category:
+              type: string
+            files:
+              type: array
+              items:
+                string
+            items:
+              type: string
+            required:
+              type: boolean
+
+
+responses:
+  200:
+    schema:
+      "$ref": "#/definitions/Case"
+  403:
+    description: Not authorized
+  404:
+    description: Curier does not exist

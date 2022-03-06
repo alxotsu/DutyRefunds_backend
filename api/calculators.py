@@ -3,27 +3,27 @@ from decimal import Decimal
 __all__ = ['CALCULATORS']
 
 
-def dhl_calc(duty: decimal, vat: decimal) -> decimal:
-    return max(11, Decimal("0.025")*(duty + vat))
+def dhl_calc(duty, vat):
+    return max(11, Decimal("0.025")*(Decimal(duty + vat)))
 
 
-def dpd_calc(duty: decimal, vat: decimal) -> decimal:
+def dpd_calc(duty, vat):
     return 5
 
 
-def fedex_calc(duty: decimal, vat: decimal) -> decimal:
-    return max(12, Decimal("0.025")*(duty + vat))
+def fedex_calc(duty, vat):
+    return max(12, Decimal("0.025")*(Decimal(duty + vat)))
 
 
-def parcelforce_calc(duty: decimal, vat: decimal) -> decimal:
+def parcelforce_calc(duty, vat):
     return 8
 
 
-def ups_calc(duty: decimal, vat: decimal) -> decimal:
-    return max(Decimal("11.50"), Decimal("0.025")*(duty + vat))
+def ups_calc(duty, vat):
+    return max(Decimal("11.50"), Decimal("0.025")*(Decimal(duty + vat)))
 
 
-def other_calc(duty: decimal, vat: decimal) -> decimal:
+def other_calc(duty, vat):
     return 0
 
 

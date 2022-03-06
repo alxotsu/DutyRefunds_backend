@@ -1,0 +1,36 @@
+parameters:
+  - name: courier_name
+    type: string
+    in: form
+    required: true
+  - name: cost
+    type: number
+    in: form
+    required: true
+  - name: description
+    type: string
+    in: form
+    maxLength: 256
+    required: true
+
+responses:
+  200:
+    schema:
+      type: object
+      properties:
+        duty:
+          type: number
+        duty_rate:
+          type: number
+        vat:
+          type: number
+        courier_fee:
+          type: number
+        duty_owned:
+          type: number
+        service_fee:
+          type: number
+        get_back:
+          type: number
+  404:
+    description: Curier does not exist
