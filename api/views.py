@@ -12,7 +12,8 @@ from api.models import db
 from api.models import *
 
 
-__all__ = ['FileView', 'AccountView', 'TokenView', 'CaseCreateView']
+__all__ = ['FileView', 'AccountView', 'TokenView', 'CaseCreateView',
+           'CaseEditorView']
 
 
 class FileView(GenericView):
@@ -182,3 +183,31 @@ class CaseCreateView(GenericView, GetMixin, CreateMixin):
     def post_perms(self):
         if request.user is None:
             raise APIException("Not authorized", 403)
+
+
+class CaseEditorView(GenericView, GetMixin, UpdateMixin):
+    serializer_class = CaseSerializer
+
+    get = swag_from(Config.SWAGGER_FORMS + 'CaseEditorView_get.yml')(GetMixin.get)
+    put = swag_from(Config.SWAGGER_FORMS + 'CaseEditorView_put.yml')(UpdateMixin.put)
+
+    def get_perms(self, id):
+        if request.user is None:
+            raise APIException("Not authorized", 403)
+        case = self.get_object(id=id)
+        if case.user_id != request.user.id:
+            raise APIException("Not your case", 403)
+
+    def put_perms(self, id):
+        self.get_perms(id)
+        case = self.get_object(id=id)
+        if case.status != Case.STATUS.NEW:
+            raise APIException("You can not edit this case", 403)
+
+        for field in ("user_id", "courier", "duty", "vat",
+                      "refund", "cost", "service_fee", "description",
+                      "tracking_number", "timeline", "hmrc_payment",
+                      "epu_number", "import_entry_number", "import_entry_date",
+                      "custom_number", "status",):
+            request.request_data.pop(field, None)
+

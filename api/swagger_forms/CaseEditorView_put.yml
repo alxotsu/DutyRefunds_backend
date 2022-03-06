@@ -1,0 +1,16 @@
+parameters:
+  - name: id
+    type: integer
+    in: path
+    required: true
+  - name: signature
+    type: file
+    in: form
+    required: false
+
+responses:
+  200:
+    schema:
+      "$ref": "#/definitions/Case"
+  403:
+    description: Not authorized or Not your case or No access

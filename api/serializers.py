@@ -76,7 +76,7 @@ class CaseSerializer(ModelSerializer):
               "custom_number", "status", "documents"]
     read_only_fields = ["id", "documents", "courier"]
 
-    signature = FileSerializer("signatures/", "sig")
+    signature = FileSerializer("signatures/", "signature", allowed_files=('.jpg',))
     documents = DocumentSerializer(many=True)
     courier = CourierSerializer()
 
