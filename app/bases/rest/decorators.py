@@ -9,15 +9,15 @@ __all__ = ['data_extract_decorator', 'authorize_decorator',
 
 def data_extract_decorator(method: callable):
     def wrapper(*args, **kwargs):
-        if request.json is None:
-            data = dict()
-            for field, value in request.files.items():
+        data = dict()
+        for field, value in request.files.items():
+            data[field] = value
+        for field, value in request.form.items():
+            data[field] = value
+        if request.json:
+            for field, value in request.json.items():
                 data[field] = value
-            for field, value in request.form.items():
-                data[field] = value
-            request.request_data = data
-        else:
-            request.request_data = request.json
+        request.request_data = data
         return method(*args, **kwargs)
     return wrapper
 
@@ -41,6 +41,6 @@ def authorize_decorator(method: callable):
 def check_perms_decorator(method: callable):
     def wrapper(self, *args, **kwargs):
         if hasattr(self, f"{request.method.lower()}_perms"):
-            getattr(self, f"{request.method.lower()}_perms")(self, *args, **kwargs)
-        return method(self, *args, **kwargs)
+            getattr(self, f"{request.method.lower()}_perms")(*args, **kwargs)
+        return method(*args, **kwargs)
     return wrapper

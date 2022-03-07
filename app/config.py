@@ -29,6 +29,11 @@ Environment requirements:
             type: str | None
             default: None
 
+    SimpleDuty:
+        SD_API_KEY:
+            type: str | None
+            default: None
+
 """
 
 from os import environ, getenv, path, sep
@@ -56,3 +61,5 @@ class Config:
     MAIL_USERNAME = getenv('EMAIL_HOST_USER')
     MAIL_DEFAULT_SENDER = getenv('EMAIL_HOST_USER')
     MAIL_PASSWORD = getenv('EMAIL_HOST_PASSWORD')
+
+    SIMPLE_DUTY_KEY = getenv('SD_API_KEY')

@@ -1,0 +1,12 @@
+parameters:
+  - name: id
+    type: integer
+    in: path
+    required: true
+
+responses:
+  200:
+    schema:
+      "$ref": "#/definitions/Case"
+  403:
+    description: Not authorized or Not your case
