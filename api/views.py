@@ -34,7 +34,6 @@ class AccountView(GenericView, GetMixin, CreateMixin, UpdateMixin, DeleteMixin):
     @swag_from(Config.SWAGGER_FORMS + 'accountsview_post.yml')
     def post(self, *args, **kwargs):
         request.request_data["bank_name"] = request.request_data["username"]
-        request.request_data["timeline"] = {"registration": datetime.utcnow().isoformat()}
         return self._change('create')
 
     def put_perms(self):

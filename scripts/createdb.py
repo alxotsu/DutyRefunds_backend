@@ -1,7 +1,10 @@
 from api.models import db
 from api.models import *
 
-if __name__ == '__main__':
+__all__ = ['main']
+
+
+def main():
     db.create_all()
 
     couriers = [
@@ -79,3 +82,7 @@ if __name__ == '__main__':
         db.session.add(courier)
 
     db.session.commit()
+
+
+if __name__ == '__main__':
+    main()
