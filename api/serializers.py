@@ -6,15 +6,15 @@ from app import Config
 from api.models import *
 
 
-__all__ = ['UserSerializer', 'CaseSerializer', 'CalculateResultSerializer']
+__all__ = ['UserSerializer', 'CaseSerializer', 'CalculateResultSerializer',
+           'DocumentSerializer']
 
 
 class UserSerializer(ModelSerializer):
     model = User
     fields = ["id", "username", "email", "subs_on_marketing",
-              "role", "bank_name", "card_number", "bank_code",
-              "timeline"]
-    read_only_fields = ["id", "role"]
+              "role", "bank_name", "card_number", "bank_code", "registration_time"]
+    read_only_fields = ["id", "role", "registration_time"]
 
     def create(self):
         email = self.data.pop("email")
@@ -67,13 +67,15 @@ class DocumentSerializer(ModelSerializer):
     Only for update and serialize
     """
     model = Document
-    fields = ["category", "files", "required", "allowed_types"]
+    fields = ["category", "required", "allowed_types", "files"]
+    read_only_fields = ["category", "required", "allowed_types"]
 
-    def __init__(self, category=None, courier=None, allowed_files=None, *args, **kwargs):
-        super(DocumentSerializer, self).__init__(*args, **kwargs)
-        if not self.many:
-            self.files = FileSerializer(f'documents/{courier}/', category,
-                                        many=True, allowed_files=allowed_files)
+    def update(self):
+        courier = self.instance.case.courier.name
+        category = self.instance.category
+        allowed_files = self.instance.allowed_files
+        self.files = FileSerializer(f'documents/{courier}/', category,
+                                    many=True, allowed_files=allowed_files)
 
 
 class CourierSerializer(ModelSerializer):
