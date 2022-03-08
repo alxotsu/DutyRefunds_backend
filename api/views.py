@@ -83,14 +83,16 @@ class TokenView(GenericView):
         if confirm_obj is None:
             user = User.query.filter_by(email=email).one()
             confirm_obj = EmailConfirm(email=email, user=user)
+        elif datetime.utcnow() - confirm_obj.created_at < timedelta(minutes=1):
+            raise APIException("Key was created less than minute ago.", 403)
+        else:
+            confirm_obj.update_key()
+
         return confirm_obj
 
     @swag_from(Config.SWAGGER_FORMS + 'tokenview_get.yml')
     def get(self):
         confirm_obj = self.get_object()
-        if datetime.utcnow() - confirm_obj.created_at < timedelta(minutes=1):
-            raise APIException("Key was created less than minute ago.", 403)
-        confirm_obj.update_key()
 
         db.session.add(confirm_obj)
         db.session.commit()
@@ -158,37 +160,47 @@ class CaseCreateView(GenericView, GetMixin, CreateMixin):
             raise APIException(response["error"]["code"], 500)
 
         courier = Courier.query.filter_by(name=request.request_data['courier_name']).one()
-        response = {
-            "duty": response["Duty"],
-            "duty_rate": response["Duty"] / request.request_data["cost"],
-            "vat": response["VAT"],
-            "courier_fee": courier.calc_cost(response["Duty"], response["VAT"]),
-            "duty_owned": response["Duty"] + response["VAT"],
-            "service_fee": (response["Duty"] + response["VAT"])*0.15,
-            "get_back": (response["Duty"] + response["VAT"])*0.85
+        data = {
+            'cost': request.request_data["cost"],
+            'duty': response["Duty"],
+            'vat': response["VAT"],
+            'courier_id': courier.id,
+            'description': request.request_data["description"],
         }
-        return response, 200
+        serializer = CalculateResultSerializer(data=data)
+        result = serializer.create()
+        db.session.add(result)
+        db.session.commit()
+
+        serializer.instance = result
+
+        return serializer.serialize(), 200
 
     @swag_from(Config.SWAGGER_FORMS + 'CaseCreateView_post.yml')
     def post(self):
-        response = self.get()[0]
-        courier = Courier.query.filter_by(name=request.request_data['courier_name']).one()
+        if request.user is None:
+            response = requests.post(f"{request.host_url}account/", json={
+                "username": request.request_data["username"],
+                "email": request.request_data["email"],
+            })
+            if response.status_code == 200:
+                user_id = response.json()['id']
+            else:
+                raise APIException(response.text, response.status_code)
+        else:
+            user_id = request.user.id
+
+        result = CalculateResult.query.get(request.request_data['result_id'])
+        if result is None:
+            raise APIException("Calculate result is not found", 404)
+
         request.request_data = {
-            "user_id": request.user.id,
-            "courier": courier,
-            "duty": response["duty_rate"],
-            "vat": response["vat"],
-            "refund": response["get_back"],
-            "cost": request.request_data["cost"],
-            "service_fee": response["service_fee"],
-            "description": request.request_data["description"],
+            "user_id": user_id,
+            "result": result,
+            "courier": result.courier,
             "tracking_number": request.request_data["tracking_number"],
         }
         return super(CaseCreateView, self).post()
-
-    def post_perms(self):
-        if request.user is None:
-            raise APIException("Not authorized", 403)
 
 
 class CaseEditorView(GenericView, GetMixin, UpdateMixin):
@@ -210,8 +222,7 @@ class CaseEditorView(GenericView, GetMixin, UpdateMixin):
         if case.status != Case.STATUS.NEW:
             raise APIException("You can not edit this case", 403)
 
-        for field in ("user_id", "courier", "duty", "vat",
-                      "refund", "cost", "service_fee", "description",
+        for field in ("user_id", "courier", "result",
                       "tracking_number", "timeline", "hmrc_payment",
                       "epu_number", "import_entry_number", "import_entry_date",
                       "custom_number", "status",):

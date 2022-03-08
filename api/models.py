@@ -4,7 +4,8 @@ from datetime import datetime
 
 from app import db
 
-__all__ = ['User', 'Authtoken', 'EmailConfirm', 'Courier', 'Case', 'Document']
+__all__ = ['User', 'Authtoken', 'EmailConfirm', 'Courier',
+           'Case', 'Document', 'CalculateResult']
 
 CHARS_POOL = string.ascii_lowercase + string.ascii_uppercase + string.digits
 
@@ -72,6 +73,7 @@ class Courier(db.Model):
     name = db.Column(db.VARCHAR(64), nullable=False, unique=True)
     required_documents = db.Column(db.JSON)
 
+    results = db.relationship('CalculateResult', backref='courier', lazy='dynamic')
     cases = db.relationship('Case', backref='courier', lazy='dynamic')
 
     def __repr__(self):
@@ -83,7 +85,7 @@ class Courier(db.Model):
             if self.name in CALCULATORS \
             else CALCULATORS['other']
 
-        return calculator(duty, vat)
+        return float(calculator(duty, vat))
 
 
 class Document(db.Model):
@@ -101,16 +103,26 @@ class Document(db.Model):
         return f'Document {self.category} for Case {self.case_id}'
 
 
-class Case(db.Model):
+class CalculateResult(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"))
-    courier_id = db.Column(db.Integer, db.ForeignKey("courier.id"), nullable=False)
     duty = db.Column(db.DECIMAL, nullable=False)
     vat = db.Column(db.DECIMAL, nullable=False)
-    refund = db.Column(db.DECIMAL, nullable=False)
     cost = db.Column(db.DECIMAL, nullable=False)
-    service_fee = db.Column(db.DECIMAL, nullable=False)
+    courier_id = db.Column(db.Integer, db.ForeignKey("courier.id"), nullable=False)
     description = db.Column(db.VARCHAR(256), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=True)
+
+    cases = db.relationship('Case', backref='result', lazy='dynamic')
+
+    def calc_cost(self):
+        return self.courier.calc_cost(self.duty, self.vat)
+
+
+class Case(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
+    courier_id = db.Column(db.Integer, db.ForeignKey("courier.id"), nullable=False)
+    result_id = db.Column(db.Integer, db.ForeignKey("calculate_result.id"), nullable=False)
     tracking_number = db.Column(db.VARCHAR(12), nullable=False)
     signature = db.Column(db.VARCHAR, nullable=True)
     timeline = db.Column(db.JSON, nullable=False)
