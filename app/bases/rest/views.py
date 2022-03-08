@@ -74,7 +74,7 @@ class GenericView(Resource):
             .get(kwargs[self.lookup_field])
 
         if self._object is None:
-            raise APIException(f"{self.serializer_class.model} is not found", 404)
+            raise APIException(f"{self.serializer_class.model.__name__} is not found", 404)
 
         return self._object
 

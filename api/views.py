@@ -13,7 +13,7 @@ from api.models import *
 
 
 __all__ = ['FileView', 'AccountView', 'TokenView', 'CaseCreateView',
-           'CaseEditorView']
+           'CaseEditorView', 'CaseDocumentAdder']
 
 
 class FileView(GenericView):
@@ -209,15 +209,20 @@ class CaseCreateView(GenericView, GetMixin, CreateMixin):
 class CaseEditorView(GenericView, GetMixin, UpdateMixin):
     serializer_class = CaseSerializer
 
+    def get_queryset(self, *args, **kwargs):
+        if request.user is None:
+            user_id = -1
+        else:
+            user_id = request.user.id
+        return self.serializer_class.model.query.filter_by(user_id=user_id)
+
     get = swag_from(Config.SWAGGER_FORMS + 'CaseEditorView_get.yml')(GetMixin.get)
     put = swag_from(Config.SWAGGER_FORMS + 'CaseEditorView_put.yml')(UpdateMixin.put)
 
     def get_perms(self, id):
         if request.user is None:
             raise APIException("Not authorized", 403)
-        case = self.get_object(id=id)
-        if case.user_id != request.user.id:
-            raise APIException("Not your case", 403)
+        self.get_object(id=id)
 
     def put_perms(self, id):
         self.get_perms(id)
@@ -230,3 +235,23 @@ class CaseEditorView(GenericView, GetMixin, UpdateMixin):
                       "epu_number", "import_entry_number", "import_entry_date",
                       "custom_number", "status",):
             request.request_data.pop(field, None)
+
+
+class CaseDocumentAdder(GenericView, UpdateMixin):
+    serializer_class = DocumentSerializer
+
+    def put_perms(self, case_id, category):
+        if request.user is None:
+            raise APIException("Not authorized", 403)
+
+        case = Case.query.get(case_id)
+        if case is None or case.user_id != request.user.id:
+            raise APIException(f"{Case.__name__} is not found", 404)
+        if case.status not in (0, 1):
+            raise APIException("You can not add documents here", 403)
+        elif case.status == Case.STATUS.NEW:
+            case.status = Case.STATUS.SUBMISSION
+            db.session.add(case)
+        self._object = Document.query.filter_by(category=category).first()
+        if self._object is None:
+            raise APIException(f"{Document.__name__} is not found", 404)
