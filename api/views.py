@@ -170,12 +170,11 @@ class CaseCreateView(GenericView, GetMixin, CreateMixin):
             'courier_id': courier.id,
             'description': request.request_data["description"],
         }
-        serializer = CalculateResultSerializer(data=data)
-        result = serializer.create()
+        result = CalculateResult(**data)
         db.session.add(result)
         db.session.commit()
 
-        serializer.instance = result
+        serializer = CalculateResultSerializer(instance=result)
 
         return serializer.serialize(), 200
 
@@ -203,7 +202,8 @@ class CaseCreateView(GenericView, GetMixin, CreateMixin):
             "courier": result.courier,
             "tracking_number": request.request_data["tracking_number"],
         }
-        return super(CaseCreateView, self).post()
+        case = super(CaseCreateView, self).post()
+        return {"id": case[0]["id"]}, case[1]
 
 
 class CaseEditorView(GenericView, GetMixin, UpdateMixin):
