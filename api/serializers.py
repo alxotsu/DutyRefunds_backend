@@ -1,11 +1,12 @@
 from datetime import datetime
+from decimal import Decimal
 from app.bases.rest.serializers import *
 from app.bases.exceptions import APIException
 from app import Config
 from api.models import *
 
 
-__all__ = ['UserSerializer', 'CaseSerializer']
+__all__ = ['UserSerializer', 'CaseSerializer', 'CalculateResultSerializer']
 
 
 class UserSerializer(ModelSerializer):
@@ -39,12 +40,34 @@ class UserSerializer(ModelSerializer):
         return instance
 
 
+class CalculateResultSerializer(ModelSerializer):
+    model = CalculateResult
+    fields = ['id', 'cost', 'duty', 'vat', 'courier_id', 'description']
+    read_only_fields = ['id']
+
+    def serialize(self):
+        return {
+            "id": self.instance.id,
+            "duty": float(self.instance.duty),
+            "duty_rate": float(self.instance.duty / self.instance.cost),
+            "vat": float(self.instance.vat),
+            "courier_fee": float(self.instance.calc_cost()),
+            "duty_owned": float(self.instance.duty + self.instance.vat),
+            "service_fee": float((self.instance.duty + self.instance.vat) * Decimal("0.15")),
+            "get_back": float((self.instance.duty + self.instance.vat) * Decimal("0.85")),
+            "description": self.instance.description,
+        }
+
+    def create(self):
+        return self.data
+
+
 class DocumentSerializer(ModelSerializer):
     """
     Only for update and serialize
     """
     model = Document
-    fields = ["category", "files", "required"]
+    fields = ["category", "files", "required", "allowed_types"]
 
     def __init__(self, category=None, courier=None, allowed_files=None, *args, **kwargs):
         super(DocumentSerializer, self).__init__(*args, **kwargs)
@@ -58,10 +81,7 @@ class CourierSerializer(ModelSerializer):
     fields = ["id", "name"]
 
     def create(self):
-        instance = self.model.query.get(self.data["id"])
-        if instance is None:
-            raise APIException("Unknown Courier ID.", 404)
-        return instance
+        return self.data
 
     def update(self):
         return self.instance
@@ -69,22 +89,20 @@ class CourierSerializer(ModelSerializer):
 
 class CaseSerializer(ModelSerializer):
     model = Case
-    fields = ["id", "user_id", "courier", "duty", "vat",
-              "refund", "cost", "service_fee", "description",
+    fields = ["id", "user_id", "courier", "result",
               "tracking_number", "signature", "timeline", "hmrc_payment",
               "epu_number", "import_entry_number", "import_entry_date",
               "custom_number", "status", "documents"]
-    read_only_fields = ["id", "documents", "courier"]
+    read_only_fields = ["id", "documents"]
 
     signature = FileSerializer("signatures/", "signature", allowed_files=('.jpg',))
     documents = DocumentSerializer(many=True)
     courier = CourierSerializer()
+    result = CalculateResultSerializer()
 
     def create(self):
-        courier = self.data["courier"]
         instance = super(CaseSerializer, self).create()
-        instance.courier = courier
-        for category, params in courier.required_documents.items():
+        for category, params in instance.courier.required_documents.items():
             document = Document(category=category,
                                 required=params["required"],
                                 allowed_types=params["types"])

@@ -32,19 +32,19 @@ if __name__ == '__main__':
                 "types": [
                     ".pdf", ".jpg"
                 ],
-                "required": True
+                "required": False
             },
             "supplementary_declaration_acceptance_advice": {
                 "types": [
                     ".pdf", ".jpg"
                 ],
-                "required": True
+                "required": False
             },
             "commercial_invoice": {
                 "types": [
                     ".pdf", ".jpg"
                 ],
-                "required": True
+                "required": False
             }
         }),
         Courier(name="Parcelforce", required_documents={
