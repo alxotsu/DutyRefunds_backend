@@ -83,16 +83,16 @@ class TokenView(GenericView):
         if confirm_obj is None:
             user = User.query.filter_by(email=email).one()
             confirm_obj = EmailConfirm(email=email, user=user)
-        elif datetime.utcnow() - confirm_obj.created_at < timedelta(minutes=1):
+        elif datetime.utcnow() - confirm_obj.created_at < timedelta(minutes=1) and \
+                request.method == 'GET':
             raise APIException("Key was created less than minute ago.", 403)
-        else:
-            confirm_obj.update_key()
 
         return confirm_obj
 
     @swag_from(Config.SWAGGER_FORMS + 'tokenview_get.yml')
     def get(self):
         confirm_obj = self.get_object()
+        confirm_obj.update_key()
 
         db.session.add(confirm_obj)
         db.session.commit()
@@ -115,7 +115,11 @@ class TokenView(GenericView):
         if confirm_obj.key == request.request_data["key"]:
             user = confirm_obj.user
             user.email = confirm_obj.email
-            token = Authtoken(user=user)
+            if user.authtoken:
+                token = user.authtoken[0]
+                token.update_key()
+            else:
+                token = Authtoken(user=user)
 
             db.session.add(token)
             for obj in user.email_confirm_obj:

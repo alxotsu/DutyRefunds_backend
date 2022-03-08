@@ -41,7 +41,7 @@ class Authtoken(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"),
                         nullable=False, unique=True)
 
-    user = db.relationship('User')
+    user = db.relationship('User', backref='authtoken')
 
     def update_key(self):
         self.key = generate_key(20)
