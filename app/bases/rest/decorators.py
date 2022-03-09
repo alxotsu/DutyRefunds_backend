@@ -10,10 +10,13 @@ __all__ = ['data_extract_decorator', 'authorize_decorator',
 def data_extract_decorator(method: callable):
     def wrapper(*args, **kwargs):
         data = dict()
-        for field, value in request.files.items():
+        for field, value in request.files.lists():
             data[field] = value
         for field, value in request.form.items():
-            data[field] = value
+            if len(value) == 1:
+                data[field] = value[0]
+            else:
+                data[field] = value
         if request.json:
             for field, value in request.json.items():
                 data[field] = value
