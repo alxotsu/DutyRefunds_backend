@@ -91,11 +91,11 @@ class CourierSerializer(ModelSerializer):
 
 class CaseSerializer(ModelSerializer):
     model = Case
-    fields = ["id", "user_id", "courier", "result",
-              "tracking_number", "signature", "timeline", "hmrc_payment",
-              "epu_number", "import_entry_number", "import_entry_date",
-              "custom_number", "status", "documents"]
-    read_only_fields = ["id", "documents"]
+    fields = ["id", "user_id", "courier", "result", "tracking_number",
+              "signature", "created_at", "hmrc_payment", "epu_number",
+              "import_entry_number", "import_entry_date", "custom_number",
+              "status", "documents"]
+    read_only_fields = ["id", "documents", "created_at"]
 
     signature = FileSerializer("signatures/", "signature", allowed_files=('.jpg',))
     documents = DocumentSerializer(many=True)
@@ -109,7 +109,4 @@ class CaseSerializer(ModelSerializer):
                                 required=params["required"],
                                 allowed_types=params["types"])
             instance.documents.append(document)
-        instance.timeline = {
-            "created": datetime.utcnow().isoformat()
-        }
         return instance

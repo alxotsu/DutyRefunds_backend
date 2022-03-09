@@ -110,7 +110,7 @@ class CalculateResult(db.Model):
     cost = db.Column(db.DECIMAL, nullable=False)
     courier_id = db.Column(db.Integer, db.ForeignKey("courier.id"), nullable=False)
     description = db.Column(db.VARCHAR(256), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     cases = db.relationship('Case', backref='result', lazy='dynamic')
 
@@ -125,12 +125,12 @@ class Case(db.Model):
     result_id = db.Column(db.Integer, db.ForeignKey("calculate_result.id"), nullable=False,
                           unique=True)
     tracking_number = db.Column(db.VARCHAR(12), nullable=False)
-    signature = db.Column(db.VARCHAR, nullable=True)
-    timeline = db.Column(db.JSON, nullable=False)
+    signature = db.Column(db.VARCHAR, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     hmrc_payment = db.Column(db.DECIMAL, nullable=True)
     epu_number = db.Column(db.Integer, nullable=True)
     import_entry_number = db.Column(db.Integer, nullable=True)
-    import_entry_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=True)
+    import_entry_date = db.Column(db.Date, default=datetime.utcnow, nullable=True)
     custom_number = db.Column(db.Integer, nullable=True)
     status = db.Column(db.SmallInteger, nullable=False, default=0)
 

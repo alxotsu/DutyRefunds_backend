@@ -137,7 +137,7 @@ class FileSerializer:
         result = self.create()
 
         if self.instance:
-            if many:
+            if self.many:
                 result = self.instance + result
             else:
                 old_full_path = Config.UPLOAD_FOLDER + self.instance
