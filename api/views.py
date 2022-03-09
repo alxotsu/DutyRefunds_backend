@@ -184,6 +184,7 @@ class CaseCreateView(GenericView, GetMixin, CreateMixin):
             response = requests.post(f"{request.host_url}account/", json={
                 "username": request.request_data["username"],
                 "email": request.request_data["email"],
+                "subs_on_marketing": bool(request.request_data.get("subs_on_marketing", False))
             })
             if response.status_code == 200:
                 user_id = response.json()['id']
@@ -192,7 +193,7 @@ class CaseCreateView(GenericView, GetMixin, CreateMixin):
         else:
             user_id = request.user.id
 
-        result = CalculateResult.query.get(request.request_data['result_id'])
+        result = CalculateResult.query.get(int(request.request_data['result_id']))
         if result is None:
             raise APIException("Calculate result is not found", 404)
 
@@ -201,6 +202,7 @@ class CaseCreateView(GenericView, GetMixin, CreateMixin):
             "result": result,
             "courier": result.courier,
             "tracking_number": request.request_data["tracking_number"],
+            "signature": request.request_data["signature"]
         }
         case = super(CaseCreateView, self).post()
         return {"id": case[0]["id"]}, case[1]
