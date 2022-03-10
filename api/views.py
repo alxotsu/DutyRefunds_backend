@@ -212,11 +212,7 @@ class CaseEditorView(GenericView, GetMixin, UpdateMixin):
     serializer_class = CaseSerializer
 
     def get_queryset(self, *args, **kwargs):
-        if request.user is None:
-            user_id = -1
-        else:
-            user_id = request.user.id
-        return self.serializer_class.model.query.filter_by(user_id=user_id)
+        return request.user.cases
 
     get = swag_from(Config.SWAGGER_FORMS + 'CaseEditorView_get.yml')(GetMixin.get)
 
@@ -263,7 +259,17 @@ class CaseViewSet(GenericView, ViewSetMixin):
     serializer_class = CaseShortSerializer
 
     def get_queryset(self,  *args, **kwargs):
-        return request.user.cases
+        cases = request.user.cases
+        if "date" in request.args:
+            if request.args["date"] == "0":
+                cases = cases.order_by(Case.created_at.asc())
+            else:
+                cases = cases.order_by(Case.created_at.desc())
+        if "status" in request.args:
+            cases = cases.filter_by(status=int(request.args["status"]))
+        if "tracking_number" in request.args:
+            cases = cases.filter(Case.tracking_number.like(f"%{request.args['tracking_number']}%"))
+        return cases
 
     def get_perms(self):
         if request.user is None:
