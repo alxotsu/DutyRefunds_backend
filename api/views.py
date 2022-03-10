@@ -219,24 +219,11 @@ class CaseEditorView(GenericView, GetMixin, UpdateMixin):
         return self.serializer_class.model.query.filter_by(user_id=user_id)
 
     get = swag_from(Config.SWAGGER_FORMS + 'CaseEditorView_get.yml')(GetMixin.get)
-    put = swag_from(Config.SWAGGER_FORMS + 'CaseEditorView_put.yml')(UpdateMixin.put)
 
     def get_perms(self, id):
         if request.user is None:
             raise APIException("Not authorized", 403)
         self.get_object(id=id)
-
-    def put_perms(self, id):
-        self.get_perms(id)
-        case = self.get_object(id=id)
-        if case.status != Case.STATUS.NEW:
-            raise APIException("You can not edit this case", 403)
-
-        for field in ("user_id", "courier", "result",
-                      "tracking_number", "timeline", "hmrc_payment",
-                      "epu_number", "import_entry_number", "import_entry_date",
-                      "custom_number", "status",):
-            request.request_data.pop(field, None)
 
 
 class CaseDocumentAdder(GenericView, UpdateMixin):

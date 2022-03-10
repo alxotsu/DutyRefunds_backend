@@ -1,6 +1,6 @@
 from pathlib import Path
 from os import remove
-from datetime import datetime
+from datetime import datetime, date
 from typing import Type
 from werkzeug.utils import secure_filename
 from flask import request
@@ -32,6 +32,8 @@ class ModelSerializer:
                 if hasattr(self, field):
                     getattr(self, field).instance = value
                     value = getattr(self, field).serialize()
+                if isinstance(value, (datetime, date)):
+                    value = str(value)
                 res[field] = value
 
             return res

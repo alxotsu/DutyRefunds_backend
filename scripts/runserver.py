@@ -8,7 +8,7 @@ api.add_resource(AccountView, "/account/")
 api.add_resource(TokenView, "/account/token/")
 api.add_resource(CaseCreateView, "/case/add/")
 api.add_resource(CaseEditorView, "/case/<id>/")
-api.add_resource(CaseDocumentAdder, "/case/<id>/<category>")
+api.add_resource(CaseDocumentAdder, "/case/<case_id>/<category>/")
 
 
 def main():

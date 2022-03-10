@@ -3,12 +3,16 @@ Registration endpoint
 parameters:
   - name: username
     type: string
-    in: form
+    in: json
     required: true
   - name: email
     type: string
-    in: form
+    in: json
     required: true
+  - name: subs_on_marketing
+    type: boolean
+    in: json
+    required: false
 responses:
   201:
     description: The new user

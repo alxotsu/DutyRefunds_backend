@@ -1,10 +1,6 @@
 parameters:
-  - name: courier_name
-    type: string
-    in: form
-    required: true
-  - name: cost
-    type: number
+  - name: result_id
+    type: integer
     in: form
     required: true
   - name: traking_number
@@ -12,12 +8,24 @@ parameters:
     maxLength: 12
     in: form
     required: true
-  - name: description
-    type: string
+  - name: signature
+    type: jpg
     in: form
-    maxLength: 256
     required: true
-
+  - name: username
+    type: string
+    maxLength: 12
+    in: false
+    required: true
+  - name: email
+    type: integer
+    in: false
+    required: true
+  - name: subs_on_marketing
+    type: string
+    maxLength: 12
+    in: form
+    required: false
 definitions:
   Case:
     type: object
@@ -31,37 +39,34 @@ definitions:
             type: integer
           name:
             type: string
-      duty:
-        type: float
-      vat:
-        type: float
-      refund:
-        type: float
-      cost:
-        type: float
-      service_fee:
-        type: float
-      description:
+      created_at:
         type: string
+        format: datetime
+      result:
+        type: object
+        properties:
+          courier_fee:
+            type: float
+          description:
+            type: string
+          duty:
+            type: float
+          duty_owned:
+            type: float
+          duty_rate:
+            type: float
+          get_back:
+            type: float
+          id:
+            type: integer
+          service_fee:
+            type: float
+          vat:
+            type: float
       tracking_number:
         type: string
       signature:
         type: string
-      timeline:
-        type: object
-        properties:
-          created:
-            type: string
-          docs_upload:
-            type: string
-          evidence_of_compensation:
-            type: string
-          hmrc_request:
-            type: string
-          hmrc_response:
-            type: string
-          done:
-            type: string
       hmrc_payment:
         type: float
       epu_number:
@@ -85,8 +90,10 @@ definitions:
               type: array
               items:
                 string
-            items:
-              type: string
+            allowed_types:
+              type: array
+              items:
+                string
             required:
               type: boolean
 
