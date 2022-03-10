@@ -220,10 +220,26 @@ class CaseEditorView(GenericView, GetMixin, UpdateMixin):
 
     get = swag_from(Config.SWAGGER_FORMS + 'CaseEditorView_get.yml')(GetMixin.get)
 
+    def put(self, id):
+        case = self.get_object(id=id)
+        if case.status != Case.STATUS.NEW:
+            raise APIException("This case already on submission", 403)
+        for document in case.documents:
+            if document.required and not document.files:
+                raise APIException(f"{document.category} is not added", 403)
+        case.status = Case.STATUS.SUBMISSION
+        db.session.add(case)
+        db.session.commit()
+
+        serializer = self.serializer_class(instance=instance)
+        return serializer.serialize(), 200
+
     def get_perms(self, id):
         if request.user is None:
             raise APIException("Not authorized", 403)
         self.get_object(id=id)
+
+    put_perms = get_perms
 
 
 class CaseDocumentAdder(GenericView, UpdateMixin):
@@ -238,9 +254,10 @@ class CaseDocumentAdder(GenericView, UpdateMixin):
             raise APIException(f"{Case.__name__} is not found", 404)
         if case.status not in (0, 1):
             raise APIException("You can not add documents here", 403)
-        elif case.status == Case.STATUS.NEW:
-            case.status = Case.STATUS.SUBMISSION
-            db.session.add(case)
         self._object = Document.query.filter_by(category=category).first()
         if self._object is None:
             raise APIException(f"{Document.__name__} is not found", 404)
+
+
+class CaseViewSet(GenericView, ViewSetMixin):
+    pass
