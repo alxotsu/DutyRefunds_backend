@@ -7,7 +7,7 @@ from api.models import *
 
 
 __all__ = ['UserSerializer', 'CaseSerializer', 'CalculateResultSerializer',
-           'DocumentSerializer']
+           'DocumentSerializer', 'CaseShortSerializer']
 
 
 class UserSerializer(ModelSerializer):

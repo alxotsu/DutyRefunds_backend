@@ -13,7 +13,7 @@ from api.models import *
 
 
 __all__ = ['FileView', 'AccountView', 'TokenView', 'CaseCreateView',
-           'CaseEditorView', 'CaseDocumentAdder']
+           'CaseEditorView', 'CaseDocumentAdder', 'CaseViewSet']
 
 
 class FileView(GenericView):
@@ -260,4 +260,11 @@ class CaseDocumentAdder(GenericView, UpdateMixin):
 
 
 class CaseViewSet(GenericView, ViewSetMixin):
-    pass
+    serializer_class = CaseShortSerializer
+
+    def get_queryset(self,  *args, **kwargs):
+        return request.user.cases
+
+    def get_perms(self):
+        if request.user is None:
+            raise APIException("Not authorized", 403)
