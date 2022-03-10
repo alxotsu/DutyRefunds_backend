@@ -181,30 +181,43 @@ class CaseCreateView(GenericView, GetMixin, CreateMixin):
     @swag_from(Config.SWAGGER_FORMS + 'CaseCreateView_post.yml')
     def post(self):
         if request.user is None:
-            response = requests.post(f"{request.host_url}account/", json={
+            if EmailConfirm.query.filter_by(email=request.request_data["email"]).first():
+                raise APIException("User with this email already exist", 403)
+            if User.query.filter_by(email=request.request_data["email"]).first():
+                raise APIException("User with this email already exist", 403)
+            serializer = UserSerializer(data={
                 "username": request.request_data["username"],
                 "email": request.request_data["email"],
-                "subs_on_marketing": bool(request.request_data.get("subs_on_marketing", False))
+                "subs_on_marketing": bool(request.request_data.get("subs_on_marketing", False)),
+                "bank_name": request.request_data["username"],
             })
-            if response.status_code == 200:
-                user_id = response.json()['id']
-            else:
-                raise APIException(response.text, response.status_code)
+            user = serializer.create()
+            db.session.add(user)
+            new_user = True
         else:
-            user_id = request.user.id
+            user = request.user
+            new_user = False
 
         result = CalculateResult.query.get(int(request.request_data['result_id']))
         if result is None:
             raise APIException("Calculate result is not found", 404)
 
         request.request_data = {
-            "user_id": user_id,
+            "user": user,
             "result": result,
             "courier": result.courier,
             "tracking_number": request.request_data["tracking_number"],
             "signature": request.request_data["signature"]
         }
         case = super(CaseCreateView, self).post()
+
+        if new_user:
+            msg = Message("DutyRefunds confirm email",
+                          sender=Config.MAIL_DEFAULT_SENDER,
+                          recipients=[user.email_confirm_obj[0].email])
+            msg.body = f"Confirm email code:\n{user.email_confirm_obj[0].key}"
+            mail.send(msg)
+
         return {"id": case[0]["id"]}, case[1]
 
 

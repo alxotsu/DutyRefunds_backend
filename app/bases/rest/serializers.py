@@ -110,7 +110,7 @@ class FileSerializer:
                 filename = self.name_prefix + time_postfix + f"({i})" + file_res
 
                 if file_res not in self.allowed_files:
-                    raise APIException(f"Forbidden file type. {self.allowed_files} only", 403)
+                    raise APIException(f"Forbidden file type. {self.allowed_files} only", 400)
                 files.append((file, filename))
 
             Path(full_path).mkdir(parents=True, exist_ok=True)
