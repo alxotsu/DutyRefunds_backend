@@ -73,9 +73,10 @@ class DocumentSerializer(ModelSerializer):
     def update(self):
         courier = self.instance.case.courier.name
         category = self.instance.category
-        allowed_files = self.instance.allowed_files
-        self.files = FileSerializer(f'documents/{courier}/', category,
+        allowed_files = self.instance.allowed_types
+        self.files = FileSerializer(f'documents/{courier}/{category}/', 'files',
                                     many=True, allowed_files=allowed_files)
+        return super(DocumentSerializer, self).update()
 
 
 class CourierSerializer(ModelSerializer):

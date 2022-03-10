@@ -31,14 +31,10 @@ definitions:
         type: string
         maxLength: 16
         example: 123-456-789
-      timeline:
-        readOnly: true
-        type: object
-        properties:
-          registration:
-            type: string
-            format: datetime
-            example: 2022-02-22T13:49:01.699373
+      registration_time:
+        type: string
+        format: datetime
+        example: 2022-02-22T13:49:01.699373
 responses:
   200:
     schema:
