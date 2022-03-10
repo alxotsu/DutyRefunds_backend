@@ -1,4 +1,5 @@
 from werkzeug.exceptions import HTTPException
+from smtplib import SMTPRecipientsRefused
 
 __all__ = ['APIException', 'ExceptionCaster']
 
@@ -16,9 +17,24 @@ def cast_http_exception(exception):
     return APIException(exception.__class__.__name__, exception.code)
 
 
+def cast_smtp_recipients_refused_exception(exception: SMTPRecipientsRefused):
+    from api.models import EmailConfirm, db
+    for email in exception.recipients:
+        conf_obj = EmailConfirm.query.filter_by(email=email).first()
+        if conf_obj is None:
+            continue
+        if conf_obj.user.email is None:
+            db.session.delete(conf_obj.user)
+        else:
+            db.session.delete(conf_obj)
+    db.session.commit()
+    return APIException(exception.__class__.__name__, 400)
+
+
 class ExceptionCaster:
     EXCEPTION_CAST = {
         HTTPException: cast_http_exception,
+        SMTPRecipientsRefused: cast_smtp_recipients_refused_exception,
     }
 
     @classmethod

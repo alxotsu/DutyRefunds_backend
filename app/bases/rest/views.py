@@ -70,11 +70,11 @@ class GenericView(Resource):
     def get_object(self, *args, **kwargs):
         if self._object:
             return self._object
-        self._object = self.get_queryset(*args, **kwargs)\
-            .get(kwargs[self.lookup_field])
+        queryset = self.get_queryset(*args, **kwargs)
+        self._object = queryset.filter_by(**kwargs).first()
 
         if self._object is None:
-            raise APIException(f"{self.serializer_class.model} is not found", 404)
+            raise APIException(f"{self.serializer_class.model.__name__} is not found", 404)
 
         return self._object
 

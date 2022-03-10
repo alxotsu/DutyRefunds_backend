@@ -1,6 +1,6 @@
 from pathlib import Path
 from os import remove
-from datetime import datetime
+from datetime import datetime, date
 from typing import Type
 from werkzeug.utils import secure_filename
 from flask import request
@@ -32,6 +32,8 @@ class ModelSerializer:
                 if hasattr(self, field):
                     getattr(self, field).instance = value
                     value = getattr(self, field).serialize()
+                if isinstance(value, (datetime, date)):
+                    value = str(value)
                 res[field] = value
 
             return res
@@ -108,7 +110,7 @@ class FileSerializer:
                 filename = self.name_prefix + time_postfix + f"({i})" + file_res
 
                 if file_res not in self.allowed_files:
-                    raise APIException(f"Forbidden file type. {self.allowed_files} only", 403)
+                    raise APIException(f"Forbidden file type. {self.allowed_files} only", 400)
                 files.append((file, filename))
 
             Path(full_path).mkdir(parents=True, exist_ok=True)
@@ -137,7 +139,7 @@ class FileSerializer:
         result = self.create()
 
         if self.instance:
-            if many:
+            if self.many:
                 result = self.instance + result
             else:
                 old_full_path = Config.UPLOAD_FOLDER + self.instance
