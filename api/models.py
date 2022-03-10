@@ -26,7 +26,9 @@ class User(db.Model):
     registration_time = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     gclid = db.Column(db.VARCHAR, nullable=True)
 
-    cases = db.relationship('Case', backref='user', lazy='dynamic')
+    cases = db.relationship('Case', backref='user', lazy='dynamic', cascade="all,delete")
+    email_confirm_obj = db.relationship('EmailConfirm', backref='user',
+                                        lazy='dynamic', cascade="all,delete")
 
     def __repr__(self):
         return f'User #{self.id} "{self.username}"'
@@ -57,8 +59,6 @@ class EmailConfirm(db.Model):
     key = db.Column(db.VARCHAR(6), nullable=False, default=lambda: generate_key(6, '1234567890'))
     email = db.Column(db.VARCHAR, index=True, unique=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-
-    user = db.relationship('User', backref='email_confirm_obj')
 
     def update_key(self):
         self.key = generate_key(6, '1234567890')
@@ -112,8 +112,6 @@ class CalculateResult(db.Model):
     description = db.Column(db.VARCHAR(256), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-    cases = db.relationship('Case', backref='result', lazy='dynamic')
-
     def calc_cost(self):
         return self.courier.calc_cost(self.duty, self.vat)
 
@@ -134,7 +132,10 @@ class Case(db.Model):
     custom_number = db.Column(db.Integer, nullable=True)
     status = db.Column(db.SmallInteger, nullable=False, default=0)
 
-    documents = db.relationship('Document', backref='case', lazy='dynamic')
+    documents = db.relationship('Document', backref='case', lazy='dynamic',
+                                cascade="all,delete")
+    result = db.relationship('CalculateResult', backref='case',
+                             cascade="all,delete")
 
     class STATUS:
         NEW = 0

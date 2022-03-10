@@ -92,11 +92,12 @@ class CourierSerializer(ModelSerializer):
 
 class CaseSerializer(ModelSerializer):
     model = Case
-    fields = ["id", "user_id", "courier", "result", "tracking_number",
+    fields = ["id", "user", "user_id", "courier", "result", "tracking_number",
               "signature", "created_at", "hmrc_payment", "epu_number",
               "import_entry_number", "import_entry_date", "custom_number",
               "status", "documents"]
-    read_only_fields = ["id", "documents", "created_at"]
+    read_only_fields = ["id", "documents", "created_at", "user_id"]
+    write_only_fields = ["user"]
 
     signature = FileSerializer("signatures/", "signature", allowed_files=('.jpg',))
     documents = DocumentSerializer(many=True)
