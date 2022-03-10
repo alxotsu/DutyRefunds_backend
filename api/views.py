@@ -13,7 +13,7 @@ from api.models import *
 
 
 __all__ = ['FileView', 'AccountView', 'TokenView', 'CaseCreateView',
-           'CaseEditorView', 'CaseDocumentAdder']
+           'CaseEditorView', 'CaseDocumentAdder', 'CaseViewSet']
 
 
 class FileView(GenericView):
@@ -225,18 +225,30 @@ class CaseEditorView(GenericView, GetMixin, UpdateMixin):
     serializer_class = CaseSerializer
 
     def get_queryset(self, *args, **kwargs):
-        if request.user is None:
-            user_id = -1
-        else:
-            user_id = request.user.id
-        return self.serializer_class.model.query.filter_by(user_id=user_id)
+        return request.user.cases
 
     get = swag_from(Config.SWAGGER_FORMS + 'CaseEditorView_get.yml')(GetMixin.get)
+
+    def put(self, id):
+        case = self.get_object(id=id)
+        if case.status != Case.STATUS.NEW:
+            raise APIException("This case already on submission", 403)
+        for document in case.documents:
+            if document.required and not document.files:
+                raise APIException(f"{document.category} is not added", 403)
+        case.status = Case.STATUS.SUBMISSION
+        db.session.add(case)
+        db.session.commit()
+
+        serializer = self.serializer_class(instance=instance)
+        return serializer.serialize(), 200
 
     def get_perms(self, id):
         if request.user is None:
             raise APIException("Not authorized", 403)
         self.get_object(id=id)
+
+    put_perms = get_perms
 
 
 class CaseDocumentAdder(GenericView, UpdateMixin):
@@ -251,9 +263,27 @@ class CaseDocumentAdder(GenericView, UpdateMixin):
             raise APIException(f"{Case.__name__} is not found", 404)
         if case.status not in (0, 1):
             raise APIException("You can not add documents here", 403)
-        elif case.status == Case.STATUS.NEW:
-            case.status = Case.STATUS.SUBMISSION
-            db.session.add(case)
         self._object = Document.query.filter_by(category=category).first()
         if self._object is None:
             raise APIException(f"{Document.__name__} is not found", 404)
+
+
+class CaseViewSet(GenericView, ViewSetMixin):
+    serializer_class = CaseShortSerializer
+
+    def get_queryset(self,  *args, **kwargs):
+        cases = request.user.cases
+        if "date" in request.args:
+            if request.args["date"] == "0":
+                cases = cases.order_by(Case.created_at.asc())
+            else:
+                cases = cases.order_by(Case.created_at.desc())
+        if "status" in request.args:
+            cases = cases.filter_by(status=int(request.args["status"]))
+        if "tracking_number" in request.args:
+            cases = cases.filter(Case.tracking_number.like(f"%{request.args['tracking_number']}%"))
+        return cases
+
+    def get_perms(self):
+        if request.user is None:
+            raise APIException("Not authorized", 403)
