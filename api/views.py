@@ -273,15 +273,18 @@ class CaseViewSet(GenericView, ViewSetMixin):
 
     def get_queryset(self,  *args, **kwargs):
         cases = request.user.cases
-        if "date" in request.args:
-            if request.args["date"] == "0":
-                cases = cases.order_by(Case.created_at.asc())
+        if "date" in request.request_data:
+            date_1 = datetime.strptime(request.request_data["date"], "%Y-%m-%d")
+            if "date2" in request.request_data:
+                date_2 = datetime.strptime(request.request_data["date2"], "%Y-%m-%d")
             else:
-                cases = cases.order_by(Case.created_at.desc())
-        if "status" in request.args:
-            cases = cases.filter_by(status=int(request.args["status"]))
-        if "tracking_number" in request.args:
-            cases = cases.filter(Case.tracking_number.like(f"%{request.args['tracking_number']}%"))
+                date_2 = datetime.strptime(request.request_data["date"], "%Y-%m-%d")
+            date_2 += timedelta(days=1)
+            cases = cases.filter(Case.created_at >= date_1, Case.created_at < date_2)
+        if "status" in request.request_data:
+            cases = cases.filter_by(status=int(request.request_data["status"]))
+        if "tracking_number" in request.request_data:
+            cases = cases.filter(Case.tracking_number.like(f"%{request.request_data['tracking_number']}%"))
         return cases
 
     def get_perms(self):
