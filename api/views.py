@@ -13,7 +13,8 @@ from api.models import *
 
 
 __all__ = ['FileView', 'AccountView', 'TokenView', 'CaseCreateView',
-           'CaseEditorView', 'CaseDocumentAdder', 'CaseViewSet']
+           'CaseEditorView', 'CaseDocumentAdder', 'CaseViewSet',
+           'AdminCaseSubmitView']
 
 
 class FileView(GenericView):
@@ -236,9 +237,22 @@ class CaseEditorView(GenericView, GetMixin, UpdateMixin):
         for document in case.documents:
             if document.required and not document.files:
                 raise APIException(f"{document.category} is not added", 403)
+
+        if request.user.bank_code is None:
+            raise APIException(f"User bank code is required", 400)
+        if request.user.bank_name is None:
+            raise APIException(f"User bank name is required", 400)
+        if request.user.card_number is None:
+            raise APIException(f"User card number is required", 400)
+
+        # TODO generate and add DRL here
+
         case.status = Case.STATUS.SUBMISSION
         db.session.add(case)
         db.session.commit()
+
+        # TODO send to airtable case info (result, courier, id,
+        #  tracking_number, drl, created_at), user bank data
 
         serializer = self.serializer_class(instance=instance)
         return serializer.serialize(), 200
@@ -290,3 +304,45 @@ class CaseViewSet(GenericView, ViewSetMixin):
     def get_perms(self):
         if request.user is None:
             raise APIException("Not authorized", 403)
+
+
+class AdminCaseSubmitView(GenericView, UpdateMixin):
+    def get_queryset(self,  *args, **kwargs):
+        return Case.query.filter(Case.status > Case.STATUS.NEW,
+                                 Case.status < Case.STATUS.PAID)
+
+    def put(self, id, step):
+        instance = self.get_object(id=id)
+
+        if step == 'submit':
+            if instance.status != Case.STATUS.SUBMISSION:
+                raise APIException("Case is not on submission", 403)
+            """
+            epu_number
+            import_entry_number
+            import_entry_date
+            custom_number
+            """
+        elif step == 'hmrc':
+            if instance.status != Case.STATUS.SUBMITTED:
+                raise APIException("Case is not submitted", 403)
+            """
+            hmrc_payment
+            """
+        elif step == 'done':
+            if instance.status != Case.STATUS.HMRC_AGREED:
+                raise APIException("HMRC for the Case is not agreed", 403)
+        else:
+            raise APIException("Unexpected 'step' value", 400)
+
+        instance.status += 1
+        db.session.add(instance)
+        db.session.commit()
+
+        return "Ok", 200
+
+    def put_perms(self, *args, **kwargs):
+        if request.user is None:
+            raise APIException("Not authorized", 403)
+        if request.user.role != User.ROLE.ADMIN:
+            raise APIException("Only for staff", 403)

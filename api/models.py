@@ -124,11 +124,12 @@ class Case(db.Model):
                           unique=True)
     tracking_number = db.Column(db.VARCHAR(12), nullable=False)
     signature = db.Column(db.VARCHAR, nullable=False)
+    drl_document = db.Column(db.VARCHAR, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     hmrc_payment = db.Column(db.DECIMAL, nullable=True)
     epu_number = db.Column(db.Integer, nullable=True)
     import_entry_number = db.Column(db.Integer, nullable=True)
-    import_entry_date = db.Column(db.Date, default=datetime.utcnow, nullable=True)
+    import_entry_date = db.Column(db.Date, nullable=True)
     custom_number = db.Column(db.Integer, nullable=True)
     status = db.Column(db.SmallInteger, nullable=False, default=0)
 
