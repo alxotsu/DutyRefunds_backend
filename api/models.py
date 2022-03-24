@@ -72,6 +72,8 @@ class Courier(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.VARCHAR(64), nullable=False, unique=True)
     required_documents = db.Column(db.JSON)
+    drl_pattern = db.Column(db.VARCHAR, nullable=True)
+    drl_content = db.Column(db.JSON)
 
     results = db.relationship('CalculateResult', backref='courier', lazy='dynamic')
     cases = db.relationship('Case', backref='courier', lazy='dynamic')
@@ -125,6 +127,7 @@ class Case(db.Model):
     tracking_number = db.Column(db.VARCHAR(12), nullable=False)
     signature = db.Column(db.VARCHAR, nullable=False)
     drl_document = db.Column(db.VARCHAR, nullable=True)
+    hmrc_document = db.Column(db.VARCHAR, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     hmrc_payment = db.Column(db.DECIMAL, nullable=True)
     epu_number = db.Column(db.Integer, nullable=True)
@@ -132,6 +135,7 @@ class Case(db.Model):
     import_entry_date = db.Column(db.Date, nullable=True)
     custom_number = db.Column(db.Integer, nullable=True)
     status = db.Column(db.SmallInteger, nullable=False, default=0)
+    airtable_id = db.Column(db.VARCHAR, nullable=True)
 
     documents = db.relationship('Document', backref='case', lazy='dynamic',
                                 cascade="all,delete")

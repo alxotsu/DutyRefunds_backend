@@ -232,8 +232,8 @@ class CaseEditorView(GenericView, GetMixin, UpdateMixin):
 
     def put(self, id):
         case = self.get_object(id=id)
-        if case.status != Case.STATUS.NEW:
-            raise APIException("This case already on submission", 403)
+        if case.status != Case.STATUS.PAID:
+            raise APIException("This case processed", 403)
         for document in case.documents:
             if document.required and not document.files:
                 raise APIException(f"{document.category} is not added", 403)
@@ -247,7 +247,8 @@ class CaseEditorView(GenericView, GetMixin, UpdateMixin):
 
         # TODO generate and add DRL here
 
-        case.status = Case.STATUS.SUBMISSION
+        if case.status == Case.STATUS.NEW:
+            case.status = Case.STATUS.SUBMISSION
         db.session.add(case)
         db.session.commit()
 
