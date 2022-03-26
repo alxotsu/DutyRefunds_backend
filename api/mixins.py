@@ -19,7 +19,7 @@ class DRLGeneratorMixin:
             if content["type"] == "string":
                 can.drawString(content["x"], content["y"], content["content"])
             elif content["type"] == "image":
-                can.drawImage(content["x"], content["y"], content["content"],
+                can.drawImage(content["content"], content["x"], content["y"],
                               content["w"], content["h"])
             else:
                 raise APIException("Unknown generator content type", 500)
@@ -28,7 +28,7 @@ class DRLGeneratorMixin:
 
         new_pdf = PdfFileReader(packet)
 
-        pattern_pdf = PdfFileReader(mediadir + in_path)
+        pattern_pdf = PdfFileReader(Config.UPLOAD_FOLDER + pattern_path)
         output = PdfFileWriter()
 
         page = pattern_pdf.getPage(0)
@@ -36,8 +36,15 @@ class DRLGeneratorMixin:
         output.addPage(page)
 
         path = f"DLRs/DRL-{datetime.utcnow().isoformat().replace(':', '-')}.pdf"
-        with Path(Config.BASE_DIR + path).open(mode='wb') as output_file:
+        with Path(Config.UPLOAD_FOLDER + path).open(mode='wb') as output_file:
             output.write(output_file)
 
         return path
 
+# For HMRC
+# signature: 125, 30, 300, 200)
+# 150, 735, "username"
+# 100, 243, "date")
+# 207, 562, "epu_number"
+# 243, 549, "entry_number"
+# 195, 537, "entry_date"

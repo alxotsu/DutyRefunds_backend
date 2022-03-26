@@ -14,8 +14,8 @@ def main():
                 },
                 drl_content={
                     "username": {"type": "string", "x": 150, "y": 735},
-                    "date": {"type": "string", "x": 125, "y": 735},
-                    "signature": {"type": "image", "x": 125, "y": 735, "w": 300, "h": 200},
+                    "date": {"type": "string", "x": 100, "y": 277},
+                    "signature": {"type": "image", "x": 125, "y": 50, "w": 300, "h": 200},
                 }),
 
         Courier(name="DHL", drl_pattern='docpatterns/DRL_other.pdf',
@@ -24,8 +24,8 @@ def main():
                 },
                 drl_content={
                     "username": {"type": "string", "x": 150, "y": 735},
-                    "date": {"type": "string", "x": 125, "y": 735},
-                    "signature": {"type": "image", "x": 125, "y": 735, "w": 300, "h": 200},
+                    "date": {"type": "string", "x": 100, "y": 277},
+                    "signature": {"type": "image", "x": 125, "y": 50, "w": 300, "h": 200},
                 }),
 
         Courier(name="Fedex", drl_pattern='docpatterns/DRL_other.pdf',
@@ -37,8 +37,8 @@ def main():
                 },
                 drl_content={
                     "username": {"type": "string", "x": 150, "y": 735},
-                    "date": {"type": "string", "x": 125, "y": 735},
-                    "signature": {"type": "image", "x": 125, "y": 735, "w": 300, "h": 200},
+                    "date": {"type": "string", "x": 100, "y": 277},
+                    "signature": {"type": "image", "x": 125, "y": 50, "w": 300, "h": 200},
                 }),
         Courier(name="Parcelforce", drl_pattern='docpatterns/DRL_Parcelforce.pdf',
                 required_documents={
