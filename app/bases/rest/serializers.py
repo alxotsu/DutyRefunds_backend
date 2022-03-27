@@ -107,6 +107,9 @@ class FileSerializer:
             time_postfix = datetime.utcnow().isoformat().replace(':', '-')
             full_path = Config.UPLOAD_FOLDER + self.path
 
+            from werkzeug.datastructures import FileStorage
+            if isinstance(self.data,  FileStorage):
+                self.data = [self.data]
             for file in self.data:
                 i += 1
                 file_res = '.' + secure_filename(file.filename).split('.')[-1]

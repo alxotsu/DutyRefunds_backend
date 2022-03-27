@@ -10,6 +10,7 @@ from api.models import Authtoken, User, EmailConfirm
 from api.serializers import *
 from api.models import db
 from api.models import *
+from api.mixins import *
 
 
 __all__ = ['FileView', 'AccountView', 'TokenView', 'CaseCreateView',
@@ -65,7 +66,7 @@ class AccountView(GenericView, GetMixin, CreateMixin, UpdateMixin, DeleteMixin):
         db.session.add(instance)
         db.session.commit()
 
-        if instance.email_confirm_obj:
+        if instance.email_confirm_obj.all():
             msg = Message("DutyRefunds confirm email",
                           sender=Config.MAIL_DEFAULT_SENDER,
                           recipients=[instance.email_confirm_obj[0].email])
@@ -222,7 +223,7 @@ class CaseCreateView(GenericView, GetMixin, CreateMixin):
         return {"id": case[0]["id"]}, case[1]
 
 
-class CaseEditorView(GenericView, GetMixin, UpdateMixin):
+class CaseEditorView(GenericView, GetMixin, UpdateMixin, DRLGeneratorMixin):
     serializer_class = CaseSerializer
 
     def get_queryset(self, *args, **kwargs):
@@ -232,7 +233,7 @@ class CaseEditorView(GenericView, GetMixin, UpdateMixin):
 
     def put(self, id):
         case = self.get_object(id=id)
-        if case.status != Case.STATUS.PAID:
+        if case.status == Case.STATUS.PAID:
             raise APIException("This case processed", 403)
         for document in case.documents:
             if document.required and not document.files:
@@ -245,7 +246,20 @@ class CaseEditorView(GenericView, GetMixin, UpdateMixin):
         if request.user.card_number is None:
             raise APIException(f"User card number is required", 400)
 
-        # TODO generate and add DRL here
+        content = list()
+        for key, insert in case.courier.drl_content.items():
+            content.append(insert.copy())
+            if key == 'username':
+                content[-1]['content'] = request.user.username
+            elif key == 'date':
+                content[-1]['content'] = datetime.utcnow().isoformat()[0:10]
+            elif key == 'signature':
+                content[-1]['content'] = case.signature
+            elif key == 'tracking_number':
+                content[-1]['content'] = case.tracking_number
+
+        drl = self.generate_drl(case.courier.drl_pattern, content)
+        case.drl_document = drl
 
         if case.status == Case.STATUS.NEW:
             case.status = Case.STATUS.SUBMISSION
@@ -255,7 +269,7 @@ class CaseEditorView(GenericView, GetMixin, UpdateMixin):
         # TODO send to airtable case info (result, courier, id,
         #  tracking_number, drl, created_at), user bank data
 
-        serializer = self.serializer_class(instance=instance)
+        serializer = self.serializer_class(instance=case)
         return serializer.serialize(), 200
 
     def get_perms(self, id):

@@ -49,9 +49,9 @@ def main():
                 },
                 drl_content={
                     "username": {"type": "string", "x": 150, "y": 735},
-                    "date": {"type": "string", "x": 125, "y": 735},
-                    "signature": {"type": "image", "x": 125, "y": 735, "w": 300, "h": 200},
-                    "traking_number": {"type": "string", "x": 125, "y": 735},
+                    "date": {"type": "string", "x": 110, "y": 265},
+                    "signature": {"type": "image", "x": 125, "y": 50, "w": 300, "h": 200},
+                    "tracking_number": {"type": "string", "x": 228, "y": 561},
                 }),
     ]
 

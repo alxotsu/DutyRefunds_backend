@@ -1,5 +1,6 @@
 from pathlib import Path
 import io
+import os
 from datetime import datetime
 from reportlab.pdfgen.canvas import Canvas
 from reportlab.lib.pagesizes import A4
@@ -16,11 +17,11 @@ class DRLGeneratorMixin:
         packet = io.BytesIO()
         can = Canvas(packet, pagesize=A4)
         for insert in content:
-            if content["type"] == "string":
-                can.drawString(content["x"], content["y"], content["content"])
-            elif content["type"] == "image":
-                can.drawImage(content["content"], content["x"], content["y"],
-                              content["w"], content["h"])
+            if insert["type"] == "string":
+                can.drawString(insert["x"], insert["y"], insert["content"])
+            elif insert["type"] == "image":
+                can.drawImage(Config.UPLOAD_FOLDER + insert["content"],
+                              insert["x"], insert["y"], insert["w"], insert["h"])
             else:
                 raise APIException("Unknown generator content type", 500)
 
@@ -35,11 +36,14 @@ class DRLGeneratorMixin:
         page.mergePage(new_pdf.getPage(0))
         output.addPage(page)
 
-        path = f"DLRs/DRL-{datetime.utcnow().isoformat().replace(':', '-')}.pdf"
-        with Path(Config.UPLOAD_FOLDER + path).open(mode='wb') as output_file:
+        path = Path(Config.UPLOAD_FOLDER + "DRLs")
+        filename = f"DRL-{datetime.utcnow().isoformat().replace(':', '-')}.pdf"
+        path.mkdir(parents=True, exist_ok=True)
+        path = path / filename
+        with path.open(mode='wb') as output_file:
             output.write(output_file)
 
-        return path
+        return f"DRLs/{filename}"
 
 # For HMRC
 # signature: 125, 30, 300, 200)
