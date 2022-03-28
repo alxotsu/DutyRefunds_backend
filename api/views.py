@@ -1,12 +1,12 @@
 from datetime import datetime, timedelta
+
 import requests
 from flask import send_from_directory
 from flasgger import swag_from
-from flask_mail import Mail, Message
+from flask_mail import Message
 from flask_restful import request
 from app.bases import *
 from app import mail, Config
-from api.models import Authtoken, User, EmailConfirm
 from api.serializers import *
 from api.models import db
 from api.models import *
@@ -223,7 +223,7 @@ class CaseCreateView(GenericView, GetMixin, CreateMixin):
         return {"id": case[0]["id"]}, case[1]
 
 
-class CaseEditorView(GenericView, GetMixin, UpdateMixin, DRLGeneratorMixin):
+class CaseEditorView(GenericView, GetMixin, UpdateMixin, DRLGeneratorMixin, AirtableRequestSenderMixin):
     serializer_class = CaseSerializer
 
     def get_queryset(self, *args, **kwargs):
@@ -266,8 +266,11 @@ class CaseEditorView(GenericView, GetMixin, UpdateMixin, DRLGeneratorMixin):
         db.session.add(case)
         db.session.commit()
 
-        # TODO send to airtable case info (result, courier, id,
-        #  tracking_number, drl, created_at), user bank data
+        airtable_id = self.sent_to_airtable(case)
+        case.airtable_id = airtable_id
+
+        db.session.add(case)
+        db.session.commit()
 
         serializer = self.serializer_class(instance=case)
         return serializer.serialize(), 200

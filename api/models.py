@@ -149,5 +149,18 @@ class Case(db.Model):
         HMRC_AGREED = 3
         PAID = 4
 
+    @property
+    def str_status(self):
+        if self.status == 0:
+            return 'new'
+        elif self.status == 1:
+            return 'submission'
+        elif self.status == 2:
+            return 'submitted'
+        elif self.status == 3:
+            return 'hmrc_agreed'
+        else:
+            return 'paid'
+
     def __repr__(self):
         return f'Case {self.id}'

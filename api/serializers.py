@@ -29,8 +29,8 @@ class UserSerializer(ModelSerializer):
         instance = super(UserSerializer, self).update()
 
         if email:
-            if instance.email_confirm_obj:
-                email_confirm_instance = user.email_confirm_obj[0]
+            if instance.email_confirm_obj.all():
+                email_confirm_instance = instance.email_confirm_obj[0]
                 email_confirm_instance.update_key()
             else:
                 email_confirm_instance = EmailConfirm(user=instance)

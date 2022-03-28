@@ -36,6 +36,9 @@ Environment requirements:
         AT_API_KEY:
             type: str | None
             default: None
+        AT_URL:
+            type: str | None
+            default: None
 
 """
 
@@ -67,3 +70,4 @@ class Config:
 
     SIMPLE_DUTY_KEY = getenv('SD_API_KEY')
     AIRTABLE_API_KEY = getenv('AT_API_KEY')
+    AIRTABLE_URL = getenv('AT_URL')
