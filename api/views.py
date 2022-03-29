@@ -1,19 +1,21 @@
 from datetime import datetime, timedelta
+
 import requests
 from flask import send_from_directory
 from flasgger import swag_from
-from flask_mail import Mail, Message
+from flask_mail import Message
 from flask_restful import request
 from app.bases import *
 from app import mail, Config
-from api.models import Authtoken, User, EmailConfirm
 from api.serializers import *
 from api.models import db
 from api.models import *
+from api.mixins import *
 
 
 __all__ = ['FileView', 'AccountView', 'TokenView', 'CaseCreateView',
-           'CaseEditorView', 'CaseDocumentAdder']
+           'CaseEditorView', 'CaseDocumentAdder', 'CaseViewSet',
+           'AdminCaseSubmitView']
 
 
 class FileView(GenericView):
@@ -64,7 +66,7 @@ class AccountView(GenericView, GetMixin, CreateMixin, UpdateMixin, DeleteMixin):
         db.session.add(instance)
         db.session.commit()
 
-        if instance.email_confirm_obj:
+        if instance.email_confirm_obj.all():
             msg = Message("DutyRefunds confirm email",
                           sender=Config.MAIL_DEFAULT_SENDER,
                           recipients=[instance.email_confirm_obj[0].email])
@@ -221,22 +223,64 @@ class CaseCreateView(GenericView, GetMixin, CreateMixin):
         return {"id": case[0]["id"]}, case[1]
 
 
-class CaseEditorView(GenericView, GetMixin, UpdateMixin):
+class CaseEditorView(GenericView, GetMixin, UpdateMixin, DRLGeneratorMixin, AirtableRequestSenderMixin):
     serializer_class = CaseSerializer
 
     def get_queryset(self, *args, **kwargs):
-        if request.user is None:
-            user_id = -1
-        else:
-            user_id = request.user.id
-        return self.serializer_class.model.query.filter_by(user_id=user_id)
+        return request.user.cases
 
     get = swag_from(Config.SWAGGER_FORMS + 'CaseEditorView_get.yml')(GetMixin.get)
+
+    def put(self, id):
+        case = self.get_object(id=id)
+        if case.status == Case.STATUS.PAID:
+            raise APIException("This case processed", 403)
+        for document in case.documents:
+            if document.required and not document.files:
+                raise APIException(f"{document.category} is not added", 403)
+
+        if request.user.bank_code is None:
+            raise APIException(f"User bank code is required", 400)
+        if request.user.bank_name is None:
+            raise APIException(f"User bank name is required", 400)
+        if request.user.card_number is None:
+            raise APIException(f"User card number is required", 400)
+
+        content = list()
+        for key, insert in case.courier.drl_content.items():
+            content.append(insert.copy())
+            if key == 'username':
+                content[-1]['content'] = request.user.username
+            elif key == 'date':
+                content[-1]['content'] = datetime.utcnow().isoformat()[0:10]
+            elif key == 'signature':
+                content[-1]['content'] = case.signature
+            elif key == 'tracking_number':
+                content[-1]['content'] = case.tracking_number
+
+        drl = self.generate_drl(case.courier.drl_pattern, content)
+        case.drl_document = drl
+
+        if case.status == Case.STATUS.NEW:
+            case.status = Case.STATUS.SUBMISSION
+        db.session.add(case)
+        db.session.commit()
+
+        airtable_id = self.sent_to_airtable(case)
+        case.airtable_id = airtable_id
+
+        db.session.add(case)
+        db.session.commit()
+
+        serializer = self.serializer_class(instance=case)
+        return serializer.serialize(), 200
 
     def get_perms(self, id):
         if request.user is None:
             raise APIException("Not authorized", 403)
         self.get_object(id=id)
+
+    put_perms = get_perms
 
 
 class CaseDocumentAdder(GenericView, UpdateMixin):
@@ -251,9 +295,86 @@ class CaseDocumentAdder(GenericView, UpdateMixin):
             raise APIException(f"{Case.__name__} is not found", 404)
         if case.status not in (0, 1):
             raise APIException("You can not add documents here", 403)
-        elif case.status == Case.STATUS.NEW:
-            case.status = Case.STATUS.SUBMISSION
-            db.session.add(case)
         self._object = Document.query.filter_by(category=category).first()
         if self._object is None:
             raise APIException(f"{Document.__name__} is not found", 404)
+
+
+class CaseViewSet(GenericView, ViewSetMixin):
+    serializer_class = CaseShortSerializer
+
+    def get_queryset(self,  *args, **kwargs):
+        cases = request.user.cases
+        if "date" in request.request_data:
+            date_1 = datetime.strptime(request.request_data["date"], "%Y-%m-%d")
+            if "date2" in request.request_data:
+                date_2 = datetime.strptime(request.request_data["date2"], "%Y-%m-%d")
+            else:
+                date_2 = datetime.strptime(request.request_data["date"], "%Y-%m-%d")
+            date_2 += timedelta(days=1)
+            cases = cases.filter(Case.created_at >= date_1, Case.created_at < date_2)
+        if "status" in request.request_data:
+            cases = cases.filter_by(status=int(request.request_data["status"]))
+        if "tracking_number" in request.request_data:
+            cases = cases.filter(Case.tracking_number.like(f"%{request.request_data['tracking_number']}%"))
+        return cases
+
+    def get_perms(self):
+        if request.user is None:
+            raise APIException("Not authorized", 403)
+
+
+class AdminCaseSubmitView(GenericView, UpdateMixin, AirtableRequestSenderMixin, DRLGeneratorMixin):
+    def get_queryset(self,  *args, **kwargs):
+        return Case.query.filter(Case.status > Case.STATUS.NEW,
+                                 Case.status < Case.STATUS.PAID)
+    serializer_class = CaseShortSerializer
+
+    def put(self, id, step):
+        instance = self.get_object(id=id)
+
+        if step == 'submit':
+            if instance.status != Case.STATUS.SUBMISSION:
+                raise APIException("Case is not on submission", 403)
+            instance.epu_number = request.request_data["epu_number"]
+            instance.import_entry_number = request.request_data["import_entry_number"]
+            instance.import_entry_date = request.request_data["import_entry_date"]
+            instance.custom_number = request.request_data["custom_number"]
+
+            content = (
+                {"type": "image", "x": 125, "y": 30, "w": 300, "h": 200, "content": instance.signature},
+                {"type": "string", "x": 150, "y": 735, "content": instance.user.username},
+                {"type": "string", "x": 100, "y": 243, "content": datetime.utcnow().isoformat()[0:10]},
+                {"type": "string", "x": 207, "y": 562, "content": str(request.request_data["epu_number"])},
+                {"type": "string", "x": 243, "y": 549, "content": str(request.request_data["import_entry_number"])},
+                {"type": "string", "x": 195, "y": 537, "content": request.request_data["import_entry_date"]},
+            )
+            drl = self.generate_drl('docpatterns/DRL_HMRC.pdf', content)
+
+            instance.hmrc_document = drl
+
+        elif step == 'hmrc':
+            if instance.status != Case.STATUS.SUBMITTED:
+                raise APIException("Case is not submitted", 403)
+            instance.hmrc_payment = request.request_data["hmrc_payment"]
+
+        elif step == 'done':
+            if instance.status != Case.STATUS.HMRC_AGREED:
+                raise APIException("HMRC for the Case is not agreed", 403)
+
+        else:
+            raise APIException("Unexpected 'step' value", 400)
+
+        instance.status += 1
+        db.session.add(instance)
+        db.session.commit()
+
+        self.sent_to_airtable(instance)
+
+        return "Ok", 200
+
+    def put_perms(self, *args, **kwargs):
+        if request.user is None:
+            raise APIException("Not authorized", 403)
+        if request.user.role != User.ROLE.ADMIN:
+            raise APIException("Only for staff", 403)

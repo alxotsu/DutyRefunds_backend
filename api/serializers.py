@@ -7,7 +7,7 @@ from api.models import *
 
 
 __all__ = ['UserSerializer', 'CaseSerializer', 'CalculateResultSerializer',
-           'DocumentSerializer']
+           'DocumentSerializer', 'CaseShortSerializer']
 
 
 class UserSerializer(ModelSerializer):
@@ -29,8 +29,8 @@ class UserSerializer(ModelSerializer):
         instance = super(UserSerializer, self).update()
 
         if email:
-            if instance.email_confirm_obj:
-                email_confirm_instance = user.email_confirm_obj[0]
+            if instance.email_confirm_obj.all():
+                email_confirm_instance = instance.email_confirm_obj[0]
                 email_confirm_instance.update_key()
             else:
                 email_confirm_instance = EmailConfirm(user=instance)
@@ -74,7 +74,7 @@ class DocumentSerializer(ModelSerializer):
         courier = self.instance.case.courier.name
         category = self.instance.category
         allowed_files = self.instance.allowed_types
-        self.files = FileSerializer(f'documents/{courier}/{category}/', 'files',
+        self.files = FileSerializer(f'documents/{courier}/{category}/', 'file',
                                     many=True, allowed_files=allowed_files)
         return super(DocumentSerializer, self).update()
 
@@ -112,3 +112,8 @@ class CaseSerializer(ModelSerializer):
                                 allowed_types=params["types"])
             instance.documents.append(document)
         return instance
+
+
+class CaseShortSerializer(CaseSerializer):
+    fields = ["id", "user_id", "tracking_number", "created_at", "status"]
+    read_only_fields = ["id", "documents", "created_at"]

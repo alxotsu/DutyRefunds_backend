@@ -29,8 +29,14 @@ Environment requirements:
             type: str | None
             default: None
 
-    SimpleDuty:
+    APIs:
         SD_API_KEY:
+            type: str | None
+            default: None
+        AT_API_KEY:
+            type: str | None
+            default: None
+        AT_URL:
             type: str | None
             default: None
 
@@ -63,3 +69,5 @@ class Config:
     MAIL_PASSWORD = getenv('EMAIL_HOST_PASSWORD')
 
     SIMPLE_DUTY_KEY = getenv('SD_API_KEY')
+    AIRTABLE_API_KEY = getenv('AT_API_KEY')
+    AIRTABLE_URL = getenv('AT_URL')

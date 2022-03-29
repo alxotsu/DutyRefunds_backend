@@ -7,7 +7,7 @@ from flask_mail import Mail
 
 from .config import Config
 
-__all__ = ['app', 'db', 'api', 'mail' 'Config']
+__all__ = ['app', 'db', 'api', 'mail', 'Config']
 
 
 app = Flask(__name__)
