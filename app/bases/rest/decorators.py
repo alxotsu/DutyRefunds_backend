@@ -9,7 +9,6 @@ __all__ = ['data_extract_decorator', 'authorize_decorator',
 
 def data_extract_decorator(method: callable):
     def wrapper(*args, **kwargs):
-        print('extract')
         data = dict()
         for field, value in request.files.lists():
             if len(value) == 1:
@@ -18,13 +17,14 @@ def data_extract_decorator(method: callable):
                 data[field] = value
         for field, value in request.form.items():
             data[field] = value
-        print(f'be4 json data: {data}')
-        if request.json:
-            print(f'json {request.json}')
+        try:
             for field, value in request.json.items():
                 data[field] = value
+        except Exception as e:
+            print(e, data)
+
         request.request_data = data
-        print(f'data: {data}')
+
         return method(*args, **kwargs)
     return wrapper
 
