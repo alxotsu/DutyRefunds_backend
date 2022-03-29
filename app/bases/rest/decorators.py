@@ -1,5 +1,4 @@
 from flask import request
-from app import db
 from api import models
 from flask_cors import cross_origin
 
