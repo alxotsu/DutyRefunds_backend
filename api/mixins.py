@@ -15,15 +15,6 @@ __all__ = ['DRLGeneratorMixin', 'AirtableRequestSenderMixin']
 
 
 class DRLGeneratorMixin:
-    """
-        For HMRC
-        125, 30, 300, 200 "signature"
-        150, 735, "username"
-        100, 243, "date"
-        207, 562, "epu_number"
-        243, 549, "entry_number"
-        195, 537, "entry_date"
-    """
 
     @staticmethod
     def generate_drl(pattern_path, content):
@@ -81,10 +72,10 @@ class AirtableRequestSenderMixin:
             "user_bank_card": case.user.card_number,
             "documents_urls": case_docs,
             "hmrc_drl_document": f"{request.host_url}upload/{case.hmrc_document}" if case.hmrc_document else None,
-            "hmrc_payment": case.hmrc_payment,
+            "hmrc_payment": float(case.hmrc_payment) if case.hmrc_payment else None,
             "epu_number": case.epu_number,
             "import_entry_number": case.import_entry_number,
-            "import_entry_date": case.import_entry_date,
+            "import_entry_date": str(case.import_entry_date) if case.import_entry_date else None,
             "custom_number": case.custom_number
         }
 

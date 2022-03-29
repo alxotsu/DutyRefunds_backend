@@ -324,10 +324,11 @@ class CaseViewSet(GenericView, ViewSetMixin):
             raise APIException("Not authorized", 403)
 
 
-class AdminCaseSubmitView(GenericView, UpdateMixin):
+class AdminCaseSubmitView(GenericView, UpdateMixin, AirtableRequestSenderMixin, DRLGeneratorMixin):
     def get_queryset(self,  *args, **kwargs):
         return Case.query.filter(Case.status > Case.STATUS.NEW,
                                  Case.status < Case.STATUS.PAID)
+    serializer_class = CaseShortSerializer
 
     def put(self, id, step):
         instance = self.get_object(id=id)
@@ -335,27 +336,40 @@ class AdminCaseSubmitView(GenericView, UpdateMixin):
         if step == 'submit':
             if instance.status != Case.STATUS.SUBMISSION:
                 raise APIException("Case is not on submission", 403)
-            """
-            epu_number
-            import_entry_number
-            import_entry_date
-            custom_number
-            """
+            instance.epu_number = request.request_data["epu_number"]
+            instance.import_entry_number = request.request_data["import_entry_number"]
+            instance.import_entry_date = request.request_data["import_entry_date"]
+            instance.custom_number = request.request_data["custom_number"]
+
+            content = (
+                {"type": "image", "x": 125, "y": 30, "w": 300, "h": 200, "content": instance.signature},
+                {"type": "string", "x": 150, "y": 735, "content": instance.user.username},
+                {"type": "string", "x": 100, "y": 243, "content": datetime.utcnow().isoformat()[0:10]},
+                {"type": "string", "x": 207, "y": 562, "content": str(request.request_data["epu_number"])},
+                {"type": "string", "x": 243, "y": 549, "content": str(request.request_data["import_entry_number"])},
+                {"type": "string", "x": 195, "y": 537, "content": request.request_data["import_entry_date"]},
+            )
+            drl = self.generate_drl('docpatterns/DRL_HMRC.pdf', content)
+
+            instance.hmrc_document = drl
+
         elif step == 'hmrc':
             if instance.status != Case.STATUS.SUBMITTED:
                 raise APIException("Case is not submitted", 403)
-            """
-            hmrc_payment
-            """
+            instance.hmrc_payment = request.request_data["hmrc_payment"]
+
         elif step == 'done':
             if instance.status != Case.STATUS.HMRC_AGREED:
                 raise APIException("HMRC for the Case is not agreed", 403)
+
         else:
             raise APIException("Unexpected 'step' value", 400)
 
         instance.status += 1
         db.session.add(instance)
         db.session.commit()
+
+        self.sent_to_airtable(instance)
 
         return "Ok", 200
 
