@@ -29,6 +29,7 @@ class User(db.Model):
     cases = db.relationship('Case', backref='user', lazy='dynamic', cascade="all,delete")
     email_confirm_obj = db.relationship('EmailConfirm', backref='user',
                                         lazy='dynamic', cascade="all,delete")
+    authtoken = db.relationship('Authtoken', backref='user', cascade="all,delete")
 
     def __repr__(self):
         return f'User #{self.id} "{self.username}"'
@@ -43,7 +44,6 @@ class Authtoken(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"),
                         nullable=False, unique=True)
 
-    user = db.relationship('User', backref='authtoken')
 
     def update_key(self):
         self.key = generate_key(20)

@@ -1,5 +1,4 @@
 from flask import request
-from app import db
 from api import models
 from flask_cors import cross_origin
 
@@ -20,8 +19,8 @@ def data_extract_decorator(method: callable):
         try:
             for field, value in request.json.items():
                 data[field] = value
-        except Exception as e:
-            print(e, data)
+        except Exception:
+            pass
 
         request.request_data = data
 
