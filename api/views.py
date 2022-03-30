@@ -295,7 +295,7 @@ class CaseDocumentAdder(GenericView, UpdateMixin):
             raise APIException(f"{Case.__name__} is not found", 404)
         if case.status not in (0, 1):
             raise APIException("You can not add documents here", 403)
-        self._object = Document.query.filter_by(category=category).first()
+        self._object = Document.query.filter_by(category=category, case_id=case_id).first()
         if self._object is None:
             raise APIException(f"{Document.__name__} is not found", 404)
 
