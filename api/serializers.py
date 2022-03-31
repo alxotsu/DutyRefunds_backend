@@ -100,3 +100,8 @@ class CaseSerializer(ModelSerializer):
                                 allowed_types=params["types"])
             instance.documents.append(document)
         return instance
+
+
+class CaseShortSerializer(CaseSerializer):
+    fields = ["id", "user_id", "tracking_number", "created_at", "status"]
+    read_only_fields = ["id", "documents", "created_at"]

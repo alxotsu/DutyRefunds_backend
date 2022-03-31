@@ -5,14 +5,12 @@ from flask import send_from_directory
 from flasgger import swag_from
 from flask_mail import Message
 from flask_restful import request
-from sqlalchemy import or_
 from app.bases import *
 from app import mail, Config
 from api.serializers import *
 from api.models import db
 from api.models import *
 from api.mixins import *
-
 
 __all__ = ['FileView', 'AccountView', 'TokenView', 'CaseCreateView',
            'CaseEditorView', 'CaseDocumentAdder', 'CaseViewSet',
@@ -224,7 +222,7 @@ class CaseCreateView(GenericView, GetMixin, CreateMixin):
             msg.body = f"Confirm email code:\n{user.email_confirm_obj[0].key}"
             mail.send(msg)
 
-        return {"id": case[0]["id"]}, case[1]
+        return case
 
 
 class CaseEditorView(GenericView, GetMixin, UpdateMixin, DRLGeneratorMixin, AirtableRequestSenderMixin):
@@ -237,8 +235,8 @@ class CaseEditorView(GenericView, GetMixin, UpdateMixin, DRLGeneratorMixin, Airt
 
     def put(self, id):
         case = self.get_object(id=id)
-        if case.status < Case.STATUS.SUBMITTED:
-            raise APIException("This already submitted", 403)
+        if case.status == Case.STATUS.PAID:
+            raise APIException("This case already done", 403)
         for document in case.documents:
             if document.required and not document.files:
                 raise APIException(f"{document.category} is not added", 403)
@@ -250,20 +248,21 @@ class CaseEditorView(GenericView, GetMixin, UpdateMixin, DRLGeneratorMixin, Airt
         if request.user.card_number is None:
             raise APIException(f"User card number is required", 400)
 
-        content = list()
-        for key, insert in case.courier.drl_content.items():
-            content.append(insert.copy())
-            if key == 'username':
-                content[-1]['content'] = request.user.username
-            elif key == 'date':
-                content[-1]['content'] = datetime.utcnow().isoformat()[0:10]
-            elif key == 'signature':
-                content[-1]['content'] = case.signature
-            elif key == 'tracking_number':
-                content[-1]['content'] = case.tracking_number
+        if case.status < Case.STATUS.SUBMITTED:
+            content = list()
+            for key, insert in case.result.courier.drl_content.items():
+                content.append(insert.copy())
+                if key == 'username':
+                    content[-1]['content'] = request.user.username
+                elif key == 'date':
+                    content[-1]['content'] = datetime.utcnow().isoformat()[0:10]
+                elif key == 'signature':
+                    content[-1]['content'] = case.signature
+                elif key == 'tracking_number':
+                    content[-1]['content'] = case.tracking_number
 
-        drl = self.generate_drl(case.result.courier.drl_pattern, content)
-        case.drl_document = drl
+            drl = self.generate_drl(case.result.courier.drl_pattern, content)
+            case.drl_document = drl
 
         if case.status == Case.STATUS.NEW:
             case.status = Case.STATUS.SUBMISSION
@@ -292,7 +291,7 @@ class CaseDocumentAdder(GenericView, UpdateMixin):
         if request.user is None:
             raise APIException("Not authorized", 403)
 
-        case = request.user.cases.get(case_id)
+        case = request.user.cases.filter_by(id=case_id).first()
         if case is None:
             raise APIException(f"Case #{case_id} is not found", 404)
         if case.status not in (0, 1):
@@ -305,7 +304,7 @@ class CaseDocumentAdder(GenericView, UpdateMixin):
 class CaseViewSet(GenericView, ViewSetMixin):
     serializer_class = CaseShortSerializer
 
-    def get_queryset(self,  *args, **kwargs):
+    def get_queryset(self, *args, **kwargs):
         cases = request.user.cases
         if "date" in request.request_data:
             date_1 = datetime.strptime(request.request_data["date"], "%Y-%m-%d")
@@ -318,10 +317,13 @@ class CaseViewSet(GenericView, ViewSetMixin):
         if "status" in request.request_data:
             cases = cases.filter_by(status=int(request.request_data["status"]))
         if "search" in request.request_data:
-            regex = f"%{request.request_data['tracking_number']}%"
-            cases = cases.filter(or_(Case.tracking_number.like(regex),
-                                     Case.result.description.like(regex),
-                                     Case.result.courier.name.like(regex)))
+            regex = f"%{request.request_data['search']}%"
+            track_cases = cases.filter(Case.tracking_number.like(regex))
+            desc_cases = cases.join(Case.result).filter(CalculateResult.description.like(regex))
+            courier_cases = cases.join(Case.result).join(CalculateResult.courier) \
+                .filter(Courier.name.like(regex))
+
+            cases = track_cases.union_all(desc_cases).union_all(courier_cases).order_by(Case.id)
 
         return cases
 
@@ -331,9 +333,10 @@ class CaseViewSet(GenericView, ViewSetMixin):
 
 
 class AdminCaseSubmitView(GenericView, UpdateMixin, AirtableRequestSenderMixin, DRLGeneratorMixin):
-    def get_queryset(self,  *args, **kwargs):
+    def get_queryset(self, *args, **kwargs):
         return Case.query.filter(Case.status > Case.STATUS.NEW,
                                  Case.status < Case.STATUS.PAID)
+
     serializer_class = CaseShortSerializer
 
     def put(self, id, step):
