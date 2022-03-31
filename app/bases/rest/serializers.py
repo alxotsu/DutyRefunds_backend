@@ -95,6 +95,9 @@ class FileSerializer:
         self.many = many
 
     def serialize(self):
+        if not self.instance:
+            return self.instance
+
         url = request.host_url + 'upload/'
         if self.many:
             return [url + file for file in self.instance]

@@ -1,5 +1,6 @@
 from random import sample
-import string, decimal
+import string
+import decimal
 from datetime import datetime
 
 from app import db
@@ -44,7 +45,6 @@ class Authtoken(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"),
                         nullable=False, unique=True)
 
-
     def update_key(self):
         self.key = generate_key(20)
 
@@ -74,9 +74,9 @@ class Courier(db.Model):
     required_documents = db.Column(db.JSON)
     drl_pattern = db.Column(db.VARCHAR, nullable=True)
     drl_content = db.Column(db.JSON)
+    email = db.Column(db.VARCHAR, nullable=True)
 
     results = db.relationship('CalculateResult', backref='courier', lazy='dynamic')
-    cases = db.relationship('Case', backref='courier', lazy='dynamic')
 
     def __repr__(self):
         return f'Courier "{self.name}"'
@@ -121,9 +121,7 @@ class CalculateResult(db.Model):
 class Case(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
-    courier_id = db.Column(db.Integer, db.ForeignKey("courier.id"), nullable=False)
-    result_id = db.Column(db.Integer, db.ForeignKey("calculate_result.id"), nullable=False,
-                          unique=True)
+    result_id = db.Column(db.Integer, db.ForeignKey("calculate_result.id"), nullable=False, unique=True)
     tracking_number = db.Column(db.VARCHAR(12), nullable=False)
     signature = db.Column(db.VARCHAR, nullable=False)
     drl_document = db.Column(db.VARCHAR, nullable=True)

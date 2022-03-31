@@ -62,6 +62,8 @@ class AirtableRequestSenderMixin:
             "case_id": case.id,
             "tracking_number": case.tracking_number,
             "created_at": str(case.created_at),
+            "courier": case.result.courier.name,
+            "description": case.result.description,
             "cost_of_purchase": float(case.result.cost),
             "get_back": float((case.result.duty + case.result.vat) * Decimal("0.85")),
             "service_fee": float((case.result.duty + case.result.vat) * Decimal("0.15")),
@@ -76,7 +78,6 @@ class AirtableRequestSenderMixin:
             "epu_number": case.epu_number,
             "import_entry_number": case.import_entry_number,
             "import_entry_date": str(case.import_entry_date) if case.import_entry_date else None,
-            "custom_number": case.custom_number
         }
 
         data = {
