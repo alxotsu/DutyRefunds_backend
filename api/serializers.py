@@ -1,8 +1,5 @@
-from datetime import datetime
 from decimal import Decimal
 from app.bases.rest.serializers import *
-from app.bases.exceptions import APIException
-from app import Config
 from api.models import *
 
 
@@ -56,6 +53,7 @@ class CalculateResultSerializer(ModelSerializer):
             "service_fee": float((self.instance.duty + self.instance.vat) * Decimal("0.15")),
             "get_back": float((self.instance.duty + self.instance.vat) * Decimal("0.85")),
             "description": self.instance.description,
+            "courier_name": self.instance.courier.name,
         }
 
     def create(self):
@@ -71,7 +69,7 @@ class DocumentSerializer(ModelSerializer):
     read_only_fields = ["category", "required", "allowed_types"]
 
     def update(self):
-        courier = self.instance.case.courier.name
+        courier = self.instance.case.result.courier.name
         category = self.instance.category
         allowed_files = self.instance.allowed_types
         self.files = FileSerializer(f'documents/{courier}/{category}/', 'file',
@@ -79,34 +77,24 @@ class DocumentSerializer(ModelSerializer):
         return super(DocumentSerializer, self).update()
 
 
-class CourierSerializer(ModelSerializer):
-    model = Courier
-    fields = ["id", "name"]
-
-    def create(self):
-        return self.data
-
-    def update(self):
-        return self.instance
-
-
 class CaseSerializer(ModelSerializer):
     model = Case
-    fields = ["id", "user", "user_id", "courier", "result", "tracking_number",
-              "signature", "created_at", "hmrc_payment", "epu_number",
-              "import_entry_number", "import_entry_date", "custom_number",
-              "status", "documents"]
-    read_only_fields = ["id", "documents", "created_at", "user_id"]
-    write_only_fields = ["user"]
+    fields = ["id", "user", "user_id", "result", "tracking_number",
+              "signature", "drl_document", "hmrc_document", "created_at",
+              "hmrc_payment", "custom_number", "status", "documents"]
+    read_only_fields = ["id", "user_id", "drl_document", "hmrc_document",
+                        "created_at", "hmrc_payment", "status", "documents"]
+    write_only_fields = ["user", "signature"]
 
     signature = FileSerializer("signatures/", "signature", allowed_files=('.jpg',))
+    drl_document = FileSerializer("signatures/", "signature", allowed_files=('.pdf',))
+    hmrc_document = FileSerializer("signatures/", "signature", allowed_files=('.pdf',))
     documents = DocumentSerializer(many=True)
-    courier = CourierSerializer()
     result = CalculateResultSerializer()
 
     def create(self):
         instance = super(CaseSerializer, self).create()
-        for category, params in instance.courier.required_documents.items():
+        for category, params in instance.result.courier.required_documents.items():
             document = Document(category=category,
                                 required=params["required"],
                                 allowed_types=params["types"])

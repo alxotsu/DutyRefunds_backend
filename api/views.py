@@ -12,7 +12,6 @@ from api.models import db
 from api.models import *
 from api.mixins import *
 
-
 __all__ = ['FileView', 'AccountView', 'TokenView', 'CaseCreateView',
            'CaseEditorView', 'CaseDocumentAdder', 'CaseViewSet',
            'AdminCaseSubmitView']
@@ -187,6 +186,7 @@ class CaseCreateView(GenericView, GetMixin, CreateMixin):
                 raise APIException("User with this email already exist", 403)
             if User.query.filter_by(email=request.request_data["email"]).first():
                 raise APIException("User with this email already exist", 403)
+
             serializer = UserSerializer(data={
                 "username": request.request_data["username"],
                 "email": request.request_data["email"],
@@ -198,6 +198,9 @@ class CaseCreateView(GenericView, GetMixin, CreateMixin):
             new_user = True
         else:
             user = request.user
+            if "subs_on_marketing" in request.request_data:
+                user.subs_on_marketing = request.request_data["subs_on_marketing", False]
+                db.session.add(user)
             new_user = False
 
         result = CalculateResult.query.get(int(request.request_data['result_id']))
@@ -207,7 +210,6 @@ class CaseCreateView(GenericView, GetMixin, CreateMixin):
         request.request_data = {
             "user": user,
             "result": result,
-            "courier": result.courier,
             "tracking_number": request.request_data["tracking_number"],
             "signature": request.request_data["signature"]
         }
@@ -220,7 +222,7 @@ class CaseCreateView(GenericView, GetMixin, CreateMixin):
             msg.body = f"Confirm email code:\n{user.email_confirm_obj[0].key}"
             mail.send(msg)
 
-        return {"id": case[0]["id"]}, case[1]
+        return case
 
 
 class CaseEditorView(GenericView, GetMixin, UpdateMixin, DRLGeneratorMixin, AirtableRequestSenderMixin):
@@ -234,7 +236,7 @@ class CaseEditorView(GenericView, GetMixin, UpdateMixin, DRLGeneratorMixin, Airt
     def put(self, id):
         case = self.get_object(id=id)
         if case.status == Case.STATUS.PAID:
-            raise APIException("This case processed", 403)
+            raise APIException("This case already done", 403)
         for document in case.documents:
             if document.required and not document.files:
                 raise APIException(f"{document.category} is not added", 403)
@@ -246,25 +248,24 @@ class CaseEditorView(GenericView, GetMixin, UpdateMixin, DRLGeneratorMixin, Airt
         if request.user.card_number is None:
             raise APIException(f"User card number is required", 400)
 
-        content = list()
-        for key, insert in case.courier.drl_content.items():
-            content.append(insert.copy())
-            if key == 'username':
-                content[-1]['content'] = request.user.username
-            elif key == 'date':
-                content[-1]['content'] = datetime.utcnow().isoformat()[0:10]
-            elif key == 'signature':
-                content[-1]['content'] = case.signature
-            elif key == 'tracking_number':
-                content[-1]['content'] = case.tracking_number
+        if case.status < Case.STATUS.SUBMITTED:
+            content = list()
+            for key, insert in case.result.courier.drl_content.items():
+                content.append(insert.copy())
+                if key == 'username':
+                    content[-1]['content'] = request.user.username
+                elif key == 'date':
+                    content[-1]['content'] = datetime.utcnow().isoformat()[0:10]
+                elif key == 'signature':
+                    content[-1]['content'] = case.signature
+                elif key == 'tracking_number':
+                    content[-1]['content'] = case.tracking_number
 
-        drl = self.generate_drl(case.courier.drl_pattern, content)
-        case.drl_document = drl
+            drl = self.generate_drl(case.result.courier.drl_pattern, content)
+            case.drl_document = drl
 
         if case.status == Case.STATUS.NEW:
             case.status = Case.STATUS.SUBMISSION
-        db.session.add(case)
-        db.session.commit()
 
         airtable_id = self.sent_to_airtable(case)
         case.airtable_id = airtable_id
@@ -290,20 +291,20 @@ class CaseDocumentAdder(GenericView, UpdateMixin):
         if request.user is None:
             raise APIException("Not authorized", 403)
 
-        case = Case.query.get(case_id)
-        if case is None or case.user_id != request.user.id:
-            raise APIException(f"{Case.__name__} is not found", 404)
+        case = request.user.cases.filter_by(id=case_id).first()
+        if case is None:
+            raise APIException(f"Case #{case_id} is not found", 404)
         if case.status not in (0, 1):
             raise APIException("You can not add documents here", 403)
-        self._object = Document.query.filter_by(category=category, case_id=case_id).first()
+        self._object = case.documents.filter_by(category=category).first()
         if self._object is None:
-            raise APIException(f"{Document.__name__} is not found", 404)
+            raise APIException(f"{category} is not found", 404)
 
 
 class CaseViewSet(GenericView, ViewSetMixin):
     serializer_class = CaseShortSerializer
 
-    def get_queryset(self,  *args, **kwargs):
+    def get_queryset(self, *args, **kwargs):
         cases = request.user.cases
         if "date" in request.request_data:
             date_1 = datetime.strptime(request.request_data["date"], "%Y-%m-%d")
@@ -315,8 +316,15 @@ class CaseViewSet(GenericView, ViewSetMixin):
             cases = cases.filter(Case.created_at >= date_1, Case.created_at < date_2)
         if "status" in request.request_data:
             cases = cases.filter_by(status=int(request.request_data["status"]))
-        if "tracking_number" in request.request_data:
-            cases = cases.filter(Case.tracking_number.like(f"%{request.request_data['tracking_number']}%"))
+        if "search" in request.request_data:
+            regex = f"%{request.request_data['search']}%"
+            track_cases = cases.filter(Case.tracking_number.like(regex))
+            desc_cases = cases.join(Case.result).filter(CalculateResult.description.like(regex))
+            courier_cases = cases.join(Case.result).join(CalculateResult.courier) \
+                .filter(Courier.name.like(regex))
+
+            cases = track_cases.union_all(desc_cases).union_all(courier_cases).order_by(Case.id)
+
         return cases
 
     def get_perms(self):
@@ -325,9 +333,10 @@ class CaseViewSet(GenericView, ViewSetMixin):
 
 
 class AdminCaseSubmitView(GenericView, UpdateMixin, AirtableRequestSenderMixin, DRLGeneratorMixin):
-    def get_queryset(self,  *args, **kwargs):
+    def get_queryset(self, *args, **kwargs):
         return Case.query.filter(Case.status > Case.STATUS.NEW,
                                  Case.status < Case.STATUS.PAID)
+
     serializer_class = CaseShortSerializer
 
     def put(self, id, step):
@@ -339,7 +348,6 @@ class AdminCaseSubmitView(GenericView, UpdateMixin, AirtableRequestSenderMixin, 
             instance.epu_number = request.request_data["epu_number"]
             instance.import_entry_number = request.request_data["import_entry_number"]
             instance.import_entry_date = request.request_data["import_entry_date"]
-            instance.custom_number = request.request_data["custom_number"]
 
             content = (
                 {"type": "image", "x": 125, "y": 30, "w": 300, "h": 200, "content": instance.signature},
