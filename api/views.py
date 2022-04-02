@@ -1,12 +1,11 @@
 from datetime import datetime, timedelta
-
 import requests
+from smtplib import SMTPRecipientsRefused
 from flask import send_from_directory
 from flasgger import swag_from
-from flask_mail import Message
 from flask_restful import request
 from app.bases import *
-from app import mail, Config
+from app import Config
 from api.serializers import *
 from api.models import db
 from api.models import *
@@ -16,6 +15,17 @@ __all__ = ['FileView', 'AccountView', 'TokenView', 'CaseCreateView',
            'CaseEditorView', 'CaseDocumentAdder', 'CaseViewSet',
            'AdminCaseSubmitView']
 
+
+def send_confirm_email(confirm_onj):
+    try:
+        EmailSenderMixin.send_mail(confirm_onj.email,
+                                   "DutyRefunds confirm email",
+                                   f"Confirm email code:\n{confirm_onj.key}")
+    except SMTPRecipientsRefused as e:
+        if confirm_onj.user.email is None:
+            db.session.delete(confirm_onj.user)
+            db.session.commit()
+        raise e
 
 class FileView(GenericView):
     @swag_from(Config.SWAGGER_FORMS + 'fileview_get.yml')
@@ -66,11 +76,7 @@ class AccountView(GenericView, GetMixin, CreateMixin, UpdateMixin, DeleteMixin):
         db.session.commit()
 
         if instance.email_confirm_obj.all():
-            msg = Message("DutyRefunds confirm email",
-                          sender=Config.MAIL_DEFAULT_SENDER,
-                          recipients=[instance.email_confirm_obj[0].email])
-            msg.body = f"Confirm email code:\n{instance.email_confirm_obj[0].key}"
-            mail.send(msg)
+            send_confirm_email(instance.email_confirm_obj[0])
 
         serializer.instance = instance
         return serializer.serialize(), 200
@@ -97,11 +103,7 @@ class TokenView(GenericView):
         db.session.add(confirm_obj)
         db.session.commit()
 
-        msg = Message("DutyRefunds confirm email",
-                      sender=Config.MAIL_DEFAULT_SENDER,
-                      recipients=[confirm_obj.email])
-        msg.body = f"Confirm email code:\n{confirm_obj.key}"
-        mail.send(msg)
+        send_confirm_email(confirm_obj)
 
         return "Ok", 200
 
@@ -216,11 +218,7 @@ class CaseCreateView(GenericView, GetMixin, CreateMixin):
         case = super(CaseCreateView, self).post()
 
         if new_user:
-            msg = Message("DutyRefunds confirm email",
-                          sender=Config.MAIL_DEFAULT_SENDER,
-                          recipients=[user.email_confirm_obj[0].email])
-            msg.body = f"Confirm email code:\n{user.email_confirm_obj[0].key}"
-            mail.send(msg)
+            send_confirm_email(user.email_confirm_obj[0])
 
         return case
 

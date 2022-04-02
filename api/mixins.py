@@ -3,15 +3,15 @@ from pathlib import Path
 import io
 import requests
 from datetime import datetime
-
 from flask import request
 from reportlab.pdfgen.canvas import Canvas
 from reportlab.lib.pagesizes import A4
+from flask_mail import Message
 from PyPDF2 import PdfFileReader, PdfFileWriter
-from app import Config
+from app import mail, Config
 from app.bases import APIException
 
-__all__ = ['DRLGeneratorMixin', 'AirtableRequestSenderMixin']
+__all__ = ['DRLGeneratorMixin', 'AirtableRequestSenderMixin', 'EmailSenderMixin']
 
 
 class DRLGeneratorMixin:
@@ -100,3 +100,13 @@ class AirtableRequestSenderMixin:
             resp = requests.post(Config.AIRTABLE_URL, headers={"Authorization": f"Bearer {Config.AIRTABLE_API_KEY}"},
                                  json=data)
         return resp.json()['records'][0]['id']
+
+
+class EmailSenderMixin:
+    @staticmethod
+    def send_mail(email, title, text):
+        msg = Message(title,
+                      sender=Config.MAIL_DEFAULT_SENDER,
+                      recipients=[email])
+        msg.body = text
+        mail.send(msg)
