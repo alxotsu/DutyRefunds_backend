@@ -76,3 +76,4 @@ class Config:
     AIRTABLE_URL = getenv('AT_URL')
 
     CELERY_BROKER_URL = getenv("CELERY_BROKER", 'redis://127.0.0.1:6379/0')
+    # celery -A app.celery worker -Q sending -P solo --loglevel=info

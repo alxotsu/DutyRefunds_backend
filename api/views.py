@@ -207,7 +207,7 @@ class CaseCreateView(GenericView, GetMixin, CreateMixin):
 
         if new_user:
             send_confirm_email_with_case(case[0]['id'])
-        send_reminder.apply_async((case[0]['id'],), eta=datetime.utcnow() + timedelta(minutes=1),
+        send_reminder.apply_async((case[0]['id'],), eta=datetime.utcnow() + timedelta(weeks=1),
                                   queue='sending')
 
         return case
@@ -308,8 +308,7 @@ class CaseViewSet(GenericView, ViewSetMixin):
             regex = f"%{request.request_data['search']}%"
             track_cases = cases.filter(Case.tracking_number.like(regex))
             desc_cases = cases.join(Case.result).filter(CalculateResult.description.like(regex))
-            courier_cases = cases.join(Case.result).join(CalculateResult.courier) \
-                .filter(Courier.name.like(regex))
+            courier_cases = cases.join(Case.result).join(CalculateResult.courier).filter(Courier.name.like(regex))
 
             cases = track_cases.union_all(desc_cases).union_all(courier_cases).order_by(Case.id)
 
