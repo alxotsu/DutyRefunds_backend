@@ -29,6 +29,7 @@ def main():
                 }),
 
         Courier(name="Fedex", drl_pattern='docpatterns/DRL_other.pdf',
+                email='testmail',
                 required_documents={
                     "proof_of_refund": {"types": [".pdf", ".jpg"], "required": True},
                     "duty_tax_invoice": {"types": [".pdf", ".jpg"], "required": False},

@@ -14,7 +14,8 @@ from app.bases import APIException
 from api.models import *
 
 __all__ = ['generate_drl', 'send_to_airtable', 'send_confirm_email',
-           'send_confirm_email_with_case', 'send_reminder']
+           'send_confirm_email_with_case', 'send_reminder',
+           'send_case_submission', 'send_case_waiting', 'send_to_hmrc']
 
 
 def generate_drl(pattern_path, content):
@@ -161,7 +162,7 @@ def send_reminder(case_id, counter=1):
         for doc in case.documents:
             if not doc.files and doc.required:
                 req_docs += f"\t-{doc.category.replace('_', ' ')};\n"
-        if req_docs == "":
+        if req_docs == "" or case.status != Case.STATUS.NEW:
             return
 
         text = f"Client’s name: {user.username}\nTracking number: {case.tracking_number}\n" \
@@ -181,4 +182,55 @@ def send_reminder(case_id, counter=1):
             send_reminder.apply_async((case_id, counter),
                                       eta=datetime.utcnow() + timedelta(weeks=1),
                                       queue='sending')
+
+
+def send_case_submission(case):
+    user = case.user
+    if user.email is None:
+        return
+    token = user.authtoken[0].key
+
+    text = f"Client’s name: {user.username}\nTracking number: {case.tracking_number}\n" \
+           f"https://dutyrefunds.co.uk/case/{case.id}?token={token}"
+
+    msg = Message(f"Case sent on confirmation.",
+                  sender=Config.MAIL_DEFAULT_SENDER,
+                  recipients=[user.email])
+    msg.body = text
+    mail.send(msg)
+
+
+def send_case_waiting(case):
+    user = case.user
+    if user.email is None:
+        return
+    token = user.authtoken[0].key
+
+    text = f"Client’s name: {user.username}\nTracking number: {case.tracking_number}\n" \
+           f"https://dutyrefunds.co.uk/case/{case.id}?token={token}"
+
+    msg = Message(f"Case sent on confirmation.",
+                  sender=Config.MAIL_DEFAULT_SENDER,
+                  recipients=[case.result.courier.email])
+    msg.body = text
+    mail.send(msg)
+
+
+def send_to_hmrc(case):
+    result = case.result
+    user = case.user
+    token = user.authtoken[0].key
+
+    text = f"Client’s name: {user.username}\nTracking number: {case.tracking_number}\n" \
+           f"Duty amount: {result.duty}\nVAT amount: {result.vat}\n" \
+           f"Refund amount: {result.duty + result.vat}\n" \
+           f"Our fee: {(result.duty + result.vat) * Decimal('0.15')}\n" \
+           f"Amount user will get back: {(result.duty + result.vat) * Decimal('0.85')}\n" \
+           f"https://dutyrefunds.co.uk/case/{case.id}?token={token}"
+
+    msg = Message("Claim submitted to HMRC",
+                  sender=Config.MAIL_DEFAULT_SENDER,
+                  recipients=[user.email])
+    msg.body = text
+    mail.send(msg)
 

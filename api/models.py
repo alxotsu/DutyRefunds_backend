@@ -21,7 +21,7 @@ class User(db.Model):
     email = db.Column(db.VARCHAR, index=True, unique=True, nullable=True)
     subs_on_marketing = db.Column(db.Boolean, default=False, nullable=False)
     role = db.Column(db.SmallInteger, nullable=False, default=0)
-    bank_name = db.Column(db.VARCHAR(32), nullable=False)
+    bank_name = db.Column(db.VARCHAR(32), nullable=True)
     card_number = db.Column(db.VARCHAR(16), nullable=True)
     bank_code = db.Column(db.VARCHAR(16), nullable=True)
     registration_time = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -142,10 +142,11 @@ class Case(db.Model):
 
     class STATUS:
         NEW = 0
-        SUBMISSION = 1
-        SUBMITTED = 2
-        HMRC_AGREED = 3
-        PAID = 4
+        WAITING = 1
+        SUBMISSION = 2
+        SUBMITTED = 3
+        HMRC_AGREED = 4
+        PAID = 5
 
     @property
     def str_status(self):

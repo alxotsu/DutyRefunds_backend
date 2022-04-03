@@ -225,16 +225,15 @@ class CaseEditorView(GenericView, GetMixin, UpdateMixin):
         case = self.get_object(id=id)
         if case.status == Case.STATUS.PAID:
             raise APIException("This case already done", 403)
-        for document in case.documents:
-            if document.required and not document.files:
-                raise APIException(f"{document.category} is not added", 403)
 
-        if request.user.bank_code is None:
-            raise APIException(f"User bank code is required", 400)
-        if request.user.bank_name is None:
-            raise APIException(f"User bank name is required", 400)
-        if request.user.card_number is None:
-            raise APIException(f"User card number is required", 400)
+        req_docs = request.request_data.get('request_docs', False)
+        if case.status == Case.STATUS.NEW:
+            if req_docs and not case.result.courier.email:
+                raise APIException(f"Cannot request documents with this courier", 403)
+            if not req_docs:
+                for document in case.documents:
+                    if document.required and not document.files:
+                        raise APIException(f"{document.category} is not added", 403)
 
         if case.status < Case.STATUS.SUBMITTED:
             content = list()
@@ -253,7 +252,12 @@ class CaseEditorView(GenericView, GetMixin, UpdateMixin):
             case.drl_document = drl
 
         if case.status == Case.STATUS.NEW:
-            case.status = Case.STATUS.SUBMISSION
+            if req_docs:
+                case.status = Case.STATUS.WAITING
+                send_case_waiting(case)
+            else:
+                case.status = Case.STATUS.SUBMISSION
+                send_case_submission(case)
 
         airtable_id = send_to_airtable(case)
         case.airtable_id = airtable_id
@@ -279,11 +283,16 @@ class CaseDocumentAdder(GenericView, UpdateMixin):
         if request.user is None:
             raise APIException("Not authorized", 403)
 
-        case = request.user.cases.filter_by(id=case_id).first()
+        if request.user.role == User.ROLE.ADMIN:
+            case = Case.query.filter(Case.status > Case.STATUS.NEW,
+                                     Case.status < Case.STATUS.PAID,
+                                     Case.id == case_id).first()
+        else:
+            case = request.user.cases.filter_by(id=case_id).first()
         if case is None:
             raise APIException(f"Case #{case_id} is not found", 404)
-        if case.status not in (0, 1):
-            raise APIException("You can not add documents here", 403)
+        if case.status >= Case.STATUS.SUBMITTED:
+            raise APIException("You can not add documents now", 403)
         self._object = case.documents.filter_by(category=category).first()
         if self._object is None:
             raise APIException(f"{category} is not found", 404)
@@ -330,8 +339,15 @@ class AdminCaseSubmitView(GenericView, UpdateMixin):
         instance = self.get_object(id=id)
 
         if step == 'submit':
-            if instance.status != Case.STATUS.SUBMISSION:
+            if instance.status not in (Case.STATUS.WAITING, Case.STATUS.SUBMISSION):
                 raise APIException("Case is not on submission", 403)
+
+            if instance.status == Case.STATUS.WAITING:
+                for document in instance.documents:
+                    if document.required and not document.files:
+                        raise APIException(f"{document.category} is not added", 403)
+                instance.status = Case.STATUS.SUBMISSION
+
             instance.epu_number = request.request_data["epu_number"]
             instance.import_entry_number = request.request_data["import_entry_number"]
             instance.import_entry_date = request.request_data["import_entry_date"]
@@ -347,6 +363,7 @@ class AdminCaseSubmitView(GenericView, UpdateMixin):
             drl = generate_drl('docpatterns/DRL_HMRC.pdf', content)
 
             instance.hmrc_document = drl
+            send_to_hmrc(instance)
 
         elif step == 'hmrc':
             if instance.status != Case.STATUS.SUBMITTED:
