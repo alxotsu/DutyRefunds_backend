@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 import requests
-from smtplib import SMTPRecipientsRefused
 from flask import send_from_directory
 from flasgger import swag_from
 from flask_restful import request
@@ -15,17 +14,6 @@ __all__ = ['FileView', 'AccountView', 'TokenView', 'CaseCreateView',
            'CaseEditorView', 'CaseDocumentAdder', 'CaseViewSet',
            'AdminCaseSubmitView']
 
-
-def send_confirm_email(confirm_onj):
-    try:
-        EmailSenderMixin.send_mail(confirm_onj.email,
-                                   "DutyRefunds confirm email",
-                                   f"Confirm email code:\n{confirm_onj.key}")
-    except SMTPRecipientsRefused as e:
-        if confirm_onj.user.email is None:
-            db.session.delete(confirm_onj.user)
-            db.session.commit()
-        raise e
 
 class FileView(GenericView):
     @swag_from(Config.SWAGGER_FORMS + 'fileview_get.yml')
@@ -218,12 +206,14 @@ class CaseCreateView(GenericView, GetMixin, CreateMixin):
         case = super(CaseCreateView, self).post()
 
         if new_user:
-            send_confirm_email(user.email_confirm_obj[0])
+            send_confirm_email_with_case(case[0]['id'])
+        send_reminder.apply_async((case[0]['id'],), eta=datetime.utcnow() + timedelta(minutes=1),
+                                  queue='sending')
 
         return case
 
 
-class CaseEditorView(GenericView, GetMixin, UpdateMixin, DRLGeneratorMixin, AirtableRequestSenderMixin):
+class CaseEditorView(GenericView, GetMixin, UpdateMixin):
     serializer_class = CaseSerializer
 
     def get_queryset(self, *args, **kwargs):
@@ -259,13 +249,13 @@ class CaseEditorView(GenericView, GetMixin, UpdateMixin, DRLGeneratorMixin, Airt
                 elif key == 'tracking_number':
                     content[-1]['content'] = case.tracking_number
 
-            drl = self.generate_drl(case.result.courier.drl_pattern, content)
+            drl = generate_drl(case.result.courier.drl_pattern, content)
             case.drl_document = drl
 
         if case.status == Case.STATUS.NEW:
             case.status = Case.STATUS.SUBMISSION
 
-        airtable_id = self.sent_to_airtable(case)
+        airtable_id = send_to_airtable(case)
         case.airtable_id = airtable_id
 
         db.session.add(case)
@@ -330,7 +320,7 @@ class CaseViewSet(GenericView, ViewSetMixin):
             raise APIException("Not authorized", 403)
 
 
-class AdminCaseSubmitView(GenericView, UpdateMixin, AirtableRequestSenderMixin, DRLGeneratorMixin):
+class AdminCaseSubmitView(GenericView, UpdateMixin):
     def get_queryset(self, *args, **kwargs):
         return Case.query.filter(Case.status > Case.STATUS.NEW,
                                  Case.status < Case.STATUS.PAID)
@@ -355,7 +345,7 @@ class AdminCaseSubmitView(GenericView, UpdateMixin, AirtableRequestSenderMixin, 
                 {"type": "string", "x": 243, "y": 549, "content": str(request.request_data["import_entry_number"])},
                 {"type": "string", "x": 195, "y": 537, "content": request.request_data["import_entry_date"]},
             )
-            drl = self.generate_drl('docpatterns/DRL_HMRC.pdf', content)
+            drl = generate_drl('docpatterns/DRL_HMRC.pdf', content)
 
             instance.hmrc_document = drl
 
@@ -375,7 +365,7 @@ class AdminCaseSubmitView(GenericView, UpdateMixin, AirtableRequestSenderMixin, 
         db.session.add(instance)
         db.session.commit()
 
-        self.sent_to_airtable(instance)
+        send_to_airtable(instance)
 
         return "Ok", 200
 
