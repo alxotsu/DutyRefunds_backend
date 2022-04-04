@@ -1,3 +1,4 @@
+from sqlalchemy.exc import IntegrityError
 from werkzeug.exceptions import HTTPException
 from smtplib import SMTPRecipientsRefused
 
@@ -10,11 +11,15 @@ class APIException(Exception):
         self.code = code
 
     def to_response(self):
-        return self.detail, self.code
+        return {'error': self.detail}, self.code
 
 
 def cast_http_exception(exception):
     return APIException(exception.__class__.__name__, exception.code)
+
+
+def cast_integrity_error(exception):
+    return APIException(exception.__class__.__name__, 409)
 
 
 def cast_smtp_recipients_refused_exception(exception: SMTPRecipientsRefused):
@@ -34,6 +39,7 @@ def cast_smtp_recipients_refused_exception(exception: SMTPRecipientsRefused):
 class ExceptionCaster:
     EXCEPTION_CAST = {
         HTTPException: cast_http_exception,
+        IntegrityError: cast_integrity_error,
         SMTPRecipientsRefused: cast_smtp_recipients_refused_exception,
     }
 
