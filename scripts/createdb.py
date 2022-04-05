@@ -9,6 +9,7 @@ def main():
 
     couriers = [
         Courier(name="UPS", drl_pattern='docpatterns/DRL_other.pdf',
+                email="otsutest01@gmail.com",
                 required_documents={
                     "proof_of_refund": {"types": [".pdf", ".jpg", ".png"], "required": True},
                 },
@@ -19,6 +20,7 @@ def main():
                 }),
 
         Courier(name="DPD", drl_pattern='docpatterns/DRL_other.pdf',
+                email="otsutest01@gmail.com",
                 required_documents={
                     "proof_of_refund": {"types": [".pdf", ".jpg", ".png"], "required": True},
                 },
@@ -29,6 +31,7 @@ def main():
                 }),
 
         Courier(name="DHL", drl_pattern='docpatterns/DRL_other.pdf',
+                email="otsutest01@gmail.com",
                 required_documents={
                     "proof_of_refund": {"types": [".pdf", ".jpg", ".png"], "required": True},
                 },

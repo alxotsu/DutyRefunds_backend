@@ -187,7 +187,7 @@ def send_reminder(case_id, counter=1):
         counter += 1
         if counter <= 3:
             send_reminder.apply_async((case_id, counter),
-                                      eta=datetime.utcnow() + timedelta(weeks=1),
+                                      eta=datetime.utcnow() + timedelta(minutes=2),
                                       queue='sending')
 
 
