@@ -201,7 +201,7 @@ class CaseCreateView(GenericView, GetMixin, CreateMixin):
         }
         case = super(CaseCreateView, self).post()
 
-        send_case(case[0])
+        send_case(case[0]['id'])
         send_reminder.apply_async((case[0]['id'],), eta=datetime.utcnow() + timedelta(weeks=1),
                                   queue='sending')
 

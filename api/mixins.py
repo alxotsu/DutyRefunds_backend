@@ -115,7 +115,8 @@ def send_confirm_email(confirm_obj):
         raise e
 
 
-def send_case(case):
+def send_case(case_id):
+    case = Case.query.get(case_id)
     result = case.result
     user = case.user
 
@@ -219,7 +220,8 @@ def send_request_documents(case):
                   recipients=[courier.email])
     msg.body = text
     if attachment:
-        msg.attach(attachment)
+        with app.open_resource(attachment) as fp:
+            msg.attach('DRL.pdf', "invoice/pdf", fp.read())
     mail.send(msg)
 
 
