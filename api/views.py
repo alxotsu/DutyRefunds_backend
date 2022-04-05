@@ -279,9 +279,7 @@ class CaseDocumentAdder(GenericView, UpdateMixin):
             raise APIException("Not authorized", 403)
 
         if request.user.role == User.ROLE.ADMIN:
-            case = Case.query.filter(Case.status > Case.STATUS.NEW,
-                                     Case.status < Case.STATUS.PAID,
-                                     Case.id == case_id).first()
+            case = Case.query.filter_by(id=case_id, status=Case.STATUS.WAITING).first()
         else:
             case = request.user.cases.filter_by(id=case_id).first()
         if case is None:
