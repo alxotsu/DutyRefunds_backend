@@ -8,6 +8,9 @@ Environment requirements:
             description:
                 0 - False
                 1 - True
+        CELERY_BROKER:
+            type: str | None
+            default: "redis://127.0.0.1:6379/0"
 
     Database:
         DB_USER:
@@ -71,3 +74,6 @@ class Config:
     SIMPLE_DUTY_KEY = getenv('SD_API_KEY')
     AIRTABLE_API_KEY = getenv('AT_API_KEY')
     AIRTABLE_URL = getenv('AT_URL')
+
+    CELERY_BROKER_URL = getenv("CELERY_BROKER", 'redis://127.0.0.1:6379/0')
+    # celery -A app.celery worker -Q sending -P solo --loglevel=info

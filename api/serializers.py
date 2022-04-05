@@ -86,7 +86,7 @@ class CaseSerializer(ModelSerializer):
                         "created_at", "hmrc_payment", "status", "documents"]
     write_only_fields = ["user", "signature"]
 
-    signature = FileSerializer("signatures/", "signature", allowed_files=('.jpg',))
+    signature = FileSerializer("signatures/", "signature", allowed_files=('.jpg', '.png'))
     drl_document = FileSerializer("signatures/", "signature", allowed_files=('.pdf',))
     hmrc_document = FileSerializer("signatures/", "signature", allowed_files=('.pdf',))
     documents = DocumentSerializer(many=True)

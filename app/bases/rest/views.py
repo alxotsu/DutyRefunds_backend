@@ -116,7 +116,7 @@ class DeleteMixin:
         db.session.delete(instance)
         db.session.commit()
 
-        return "Ok", 204
+        return {'result': "Ok"}, 204
 
 
 class ViewSetMixin:

@@ -1,12 +1,12 @@
 from datetime import datetime, timedelta
-
 import requests
 from flask import send_from_directory
 from flasgger import swag_from
-from flask_mail import Message
 from flask_restful import request
+from sqlalchemy import func
+
 from app.bases import *
-from app import mail, Config
+from app import Config
 from api.serializers import *
 from api.models import db
 from api.models import *
@@ -66,11 +66,7 @@ class AccountView(GenericView, GetMixin, CreateMixin, UpdateMixin, DeleteMixin):
         db.session.commit()
 
         if instance.email_confirm_obj.all():
-            msg = Message("DutyRefunds confirm email",
-                          sender=Config.MAIL_DEFAULT_SENDER,
-                          recipients=[instance.email_confirm_obj[0].email])
-            msg.body = f"Confirm email code:\n{instance.email_confirm_obj[0].key}"
-            mail.send(msg)
+            send_confirm_email(instance.email_confirm_obj[0])
 
         serializer.instance = instance
         return serializer.serialize(), 200
@@ -97,21 +93,13 @@ class TokenView(GenericView):
         db.session.add(confirm_obj)
         db.session.commit()
 
-        msg = Message("DutyRefunds confirm email",
-                      sender=Config.MAIL_DEFAULT_SENDER,
-                      recipients=[confirm_obj.email])
-        msg.body = f"Confirm email code:\n{confirm_obj.key}"
-        mail.send(msg)
+        send_confirm_email(confirm_obj)
 
-        return "Ok", 200
+        return {'result': "Ok"}, 200
 
     @swag_from(Config.SWAGGER_FORMS + 'tokenview_post.yml')
     def post(self):
         confirm_obj = self.get_object()
-        if datetime.utcnow() - confirm_obj.created_at > timedelta(minutes=5):
-            db.session.delete(confirm_obj)
-            db.session.commit()
-            raise APIException("Key has expired.", 403)
         if confirm_obj.key == request.request_data["key"]:
             user = confirm_obj.user
             user.email = confirm_obj.email
@@ -195,13 +183,11 @@ class CaseCreateView(GenericView, GetMixin, CreateMixin):
             })
             user = serializer.create()
             db.session.add(user)
-            new_user = True
         else:
             user = request.user
             if "subs_on_marketing" in request.request_data:
                 user.subs_on_marketing = request.request_data["subs_on_marketing", False]
                 db.session.add(user)
-            new_user = False
 
         result = CalculateResult.query.get(int(request.request_data['result_id']))
         if result is None:
@@ -215,17 +201,14 @@ class CaseCreateView(GenericView, GetMixin, CreateMixin):
         }
         case = super(CaseCreateView, self).post()
 
-        if new_user:
-            msg = Message("DutyRefunds confirm email",
-                          sender=Config.MAIL_DEFAULT_SENDER,
-                          recipients=[user.email_confirm_obj[0].email])
-            msg.body = f"Confirm email code:\n{user.email_confirm_obj[0].key}"
-            mail.send(msg)
+        send_case(case[0]['id'])
+        send_reminder.apply_async((case[0]['id'],), eta=datetime.utcnow() + timedelta(weeks=1),
+                                  queue='sending')
 
         return case
 
 
-class CaseEditorView(GenericView, GetMixin, UpdateMixin, DRLGeneratorMixin, AirtableRequestSenderMixin):
+class CaseEditorView(GenericView, GetMixin, UpdateMixin):
     serializer_class = CaseSerializer
 
     def get_queryset(self, *args, **kwargs):
@@ -237,18 +220,17 @@ class CaseEditorView(GenericView, GetMixin, UpdateMixin, DRLGeneratorMixin, Airt
         case = self.get_object(id=id)
         if case.status == Case.STATUS.PAID:
             raise APIException("This case already done", 403)
-        for document in case.documents:
-            if document.required and not document.files:
-                raise APIException(f"{document.category} is not added", 403)
 
-        if request.user.bank_code is None:
-            raise APIException(f"User bank code is required", 400)
-        if request.user.bank_name is None:
-            raise APIException(f"User bank name is required", 400)
-        if request.user.card_number is None:
-            raise APIException(f"User card number is required", 400)
+        req_docs = request.request_data.get('request_docs', False)
+        if case.status == Case.STATUS.NEW:
+            if req_docs and not case.result.courier.email:
+                raise APIException(f"Cannot request documents with this courier", 403)
+            if not req_docs:
+                for document in case.documents:
+                    if document.required and not document.files:
+                        raise APIException(f"{document.category} is not added", 403)
 
-        if case.status < Case.STATUS.SUBMITTED:
+        if not case.drl_document:
             content = list()
             for key, insert in case.result.courier.drl_content.items():
                 content.append(insert.copy())
@@ -261,13 +243,18 @@ class CaseEditorView(GenericView, GetMixin, UpdateMixin, DRLGeneratorMixin, Airt
                 elif key == 'tracking_number':
                     content[-1]['content'] = case.tracking_number
 
-            drl = self.generate_drl(case.result.courier.drl_pattern, content)
+            drl = generate_drl(case.result.courier.drl_pattern, content)
             case.drl_document = drl
 
         if case.status == Case.STATUS.NEW:
-            case.status = Case.STATUS.SUBMISSION
+            if req_docs:
+                case.status = Case.STATUS.WAITING
+            else:
+                case.status = Case.STATUS.SUBMISSION
+                send_request_documents(case)
+                send_case_submission(case)
 
-        airtable_id = self.sent_to_airtable(case)
+        airtable_id = send_to_airtable(case)
         case.airtable_id = airtable_id
 
         db.session.add(case)
@@ -291,11 +278,16 @@ class CaseDocumentAdder(GenericView, UpdateMixin):
         if request.user is None:
             raise APIException("Not authorized", 403)
 
-        case = request.user.cases.filter_by(id=case_id).first()
+        if request.user.role == User.ROLE.ADMIN:
+            case = Case.query.filter(Case.status > Case.STATUS.NEW,
+                                     Case.status < Case.STATUS.PAID,
+                                     Case.id == case_id).first()
+        else:
+            case = request.user.cases.filter_by(id=case_id).first()
         if case is None:
             raise APIException(f"Case #{case_id} is not found", 404)
-        if case.status not in (0, 1):
-            raise APIException("You can not add documents here", 403)
+        if case.status >= Case.STATUS.SUBMITTED:
+            raise APIException("You can not add documents now", 403)
         self._object = case.documents.filter_by(category=category).first()
         if self._object is None:
             raise APIException(f"{category} is not found", 404)
@@ -317,11 +309,10 @@ class CaseViewSet(GenericView, ViewSetMixin):
         if "status" in request.request_data:
             cases = cases.filter_by(status=int(request.request_data["status"]))
         if "search" in request.request_data:
-            regex = f"%{request.request_data['search']}%"
-            track_cases = cases.filter(Case.tracking_number.like(regex))
-            desc_cases = cases.join(Case.result).filter(CalculateResult.description.like(regex))
-            courier_cases = cases.join(Case.result).join(CalculateResult.courier) \
-                .filter(Courier.name.like(regex))
+            regex = f"%{request.request_data['search'].lower()}%"
+            track_cases = cases.filter(func.lower(Case.tracking_number).like(regex))
+            desc_cases = cases.join(Case.result).filter(func.lower(CalculateResult.description).like(regex))
+            courier_cases = cases.join(Case.result).join(CalculateResult.courier).filter(func.lower(Courier.name).like(regex))
 
             cases = track_cases.union_all(desc_cases).union_all(courier_cases).order_by(Case.id)
 
@@ -332,7 +323,7 @@ class CaseViewSet(GenericView, ViewSetMixin):
             raise APIException("Not authorized", 403)
 
 
-class AdminCaseSubmitView(GenericView, UpdateMixin, AirtableRequestSenderMixin, DRLGeneratorMixin):
+class AdminCaseSubmitView(GenericView, UpdateMixin):
     def get_queryset(self, *args, **kwargs):
         return Case.query.filter(Case.status > Case.STATUS.NEW,
                                  Case.status < Case.STATUS.PAID)
@@ -343,8 +334,15 @@ class AdminCaseSubmitView(GenericView, UpdateMixin, AirtableRequestSenderMixin, 
         instance = self.get_object(id=id)
 
         if step == 'submit':
-            if instance.status != Case.STATUS.SUBMISSION:
+            if instance.status not in (Case.STATUS.WAITING, Case.STATUS.SUBMISSION):
                 raise APIException("Case is not on submission", 403)
+
+            if instance.status == Case.STATUS.WAITING:
+                for document in instance.documents:
+                    if document.required and not document.files:
+                        raise APIException(f"{document.category} is not added", 403)
+                instance.status = Case.STATUS.SUBMISSION
+
             instance.epu_number = request.request_data["epu_number"]
             instance.import_entry_number = request.request_data["import_entry_number"]
             instance.import_entry_date = request.request_data["import_entry_date"]
@@ -357,7 +355,7 @@ class AdminCaseSubmitView(GenericView, UpdateMixin, AirtableRequestSenderMixin, 
                 {"type": "string", "x": 243, "y": 549, "content": str(request.request_data["import_entry_number"])},
                 {"type": "string", "x": 195, "y": 537, "content": request.request_data["import_entry_date"]},
             )
-            drl = self.generate_drl('docpatterns/DRL_HMRC.pdf', content)
+            drl = generate_drl('docpatterns/DRL_HMRC.pdf', content)
 
             instance.hmrc_document = drl
 
@@ -365,6 +363,7 @@ class AdminCaseSubmitView(GenericView, UpdateMixin, AirtableRequestSenderMixin, 
             if instance.status != Case.STATUS.SUBMITTED:
                 raise APIException("Case is not submitted", 403)
             instance.hmrc_payment = request.request_data["hmrc_payment"]
+            send_to_hmrc(instance)
 
         elif step == 'done':
             if instance.status != Case.STATUS.HMRC_AGREED:
@@ -377,9 +376,9 @@ class AdminCaseSubmitView(GenericView, UpdateMixin, AirtableRequestSenderMixin, 
         db.session.add(instance)
         db.session.commit()
 
-        self.sent_to_airtable(instance)
+        send_to_airtable(instance)
 
-        return "Ok", 200
+        return {'result': "Ok"}, 200
 
     def put_perms(self, *args, **kwargs):
         if request.user is None:
