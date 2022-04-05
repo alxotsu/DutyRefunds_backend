@@ -1,2 +1,2 @@
 web: gunicorn scripts.runserver:app
-worker: celery worker --app=app.celery -Q sending -P solo --loglevel=info
+worker: celery -A app.celery worker -Q sending -P solo -l info -B
