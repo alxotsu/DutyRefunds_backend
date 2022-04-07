@@ -7,6 +7,10 @@ flask-migrate==3.1.0
 flask-mail==0.9.1
 psycopg2==2.9.3
 requests==2.27.1
+PyPDF2==1.26.0
+reportlab==3.6.8
+celery==5.2.3
+redis==4.2.1
 
 #debug
 flasgger==0.9.5

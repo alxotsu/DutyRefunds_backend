@@ -95,7 +95,13 @@ class FileSerializer:
         self.many = many
 
     def serialize(self):
-        return self.instance
+        if not self.instance:
+            return self.instance
+
+        url = request.host_url + 'upload/'
+        if self.many:
+            return [url + file for file in self.instance]
+        return url + self.instance
 
     def create(self):
         if self.many:
@@ -104,7 +110,10 @@ class FileSerializer:
             time_postfix = datetime.utcnow().isoformat().replace(':', '-')
             full_path = Config.UPLOAD_FOLDER + self.path
 
-            for file in request.request_data[self.name_prefix]:
+            from werkzeug.datastructures import FileStorage
+            if isinstance(self.data,  FileStorage):
+                self.data = [self.data]
+            for file in self.data:
                 i += 1
                 file_res = '.' + secure_filename(file.filename).split('.')[-1]
                 filename = self.name_prefix + time_postfix + f"({i})" + file_res
@@ -121,7 +130,7 @@ class FileSerializer:
             return result
 
         else:
-            file = request.request_data[self.name_prefix]
+            file = self.data
 
             file_res = '.' + secure_filename(file.filename).split('.')[-1]
             full_path = Config.UPLOAD_FOLDER + self.path

@@ -2,7 +2,6 @@ try:
     from collections.abc import Mapping
 except ImportError:
     from collections import Mapping
-from typing import Type
 from werkzeug.wrappers import Response as ResponseBase
 from flask_restful.utils import unpack, OrderedDict
 from flask_restful import Resource, request
@@ -116,7 +115,7 @@ class DeleteMixin:
         db.session.delete(instance)
         db.session.commit()
 
-        return "Ok", 204
+        return {'result': "Ok"}, 204
 
 
 class ViewSetMixin:

@@ -13,26 +13,31 @@ parameters:
     maxLength: 256
     required: true
 
+definitions:
+  CalculateResult:
+    type: object
+    properties:
+      duty:
+        type: number
+      duty_rate:
+        type: number
+      vat:
+        type: number
+      courier_fee:
+        type: number
+      duty_owned:
+        type: number
+      service_fee:
+        type: number
+      get_back:
+        type: number
+      id:
+        type: integer
+
+
 responses:
   200:
     schema:
-      type: object
-      properties:
-        duty:
-          type: number
-        duty_rate:
-          type: number
-        vat:
-          type: number
-        courier_fee:
-          type: number
-        duty_owned:
-          type: number
-        service_fee:
-          type: number
-        get_back:
-          type: number
-        id:
-          type: integer
+     "$ref": "#/definitions/CalculateResult"
   404:
     description: Curier does not exist

@@ -43,26 +43,7 @@ definitions:
         type: string
         format: datetime
       result:
-        type: object
-        properties:
-          courier_fee:
-            type: float
-          description:
-            type: string
-          duty:
-            type: float
-          duty_owned:
-            type: float
-          duty_rate:
-            type: float
-          get_back:
-            type: float
-          id:
-            type: integer
-          service_fee:
-            type: float
-          vat:
-            type: float
+        "$ref": "#/definitions/CalculateResult"
       tracking_number:
         type: string
       signature:
@@ -82,21 +63,24 @@ definitions:
       documents:
         type: array
         items:
-          type: object
-          properties:
-            category:
-              type: string
-            files:
-              type: array
-              items:
-                string
-            allowed_types:
-              type: array
-              items:
-                string
-            required:
-              type: boolean
+          "$ref": "#/definitions/Document"
 
+
+  Document:
+    type: object
+    properties:
+      category:
+        type: string
+      files:
+        type: array
+        items:
+          type: string
+      allowed_types:
+        type: array
+        items:
+           type: string
+      required:
+        type: boolean
 
 responses:
   200:

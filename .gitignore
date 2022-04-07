@@ -1,5 +1,6 @@
 /scripts/request_sender.py
 /media/*
+!/media/docpatterns/*
 
 # IntelliJ project files
 .idea

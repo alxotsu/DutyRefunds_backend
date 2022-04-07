@@ -1,5 +1,6 @@
 from random import sample
-import string, decimal
+import string
+import decimal
 from datetime import datetime
 
 from app import db
@@ -20,7 +21,7 @@ class User(db.Model):
     email = db.Column(db.VARCHAR, index=True, unique=True, nullable=True)
     subs_on_marketing = db.Column(db.Boolean, default=False, nullable=False)
     role = db.Column(db.SmallInteger, nullable=False, default=0)
-    bank_name = db.Column(db.VARCHAR(32), nullable=False)
+    bank_name = db.Column(db.VARCHAR(32), nullable=True)
     card_number = db.Column(db.VARCHAR(16), nullable=True)
     bank_code = db.Column(db.VARCHAR(16), nullable=True)
     registration_time = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -29,6 +30,7 @@ class User(db.Model):
     cases = db.relationship('Case', backref='user', lazy='dynamic', cascade="all,delete")
     email_confirm_obj = db.relationship('EmailConfirm', backref='user',
                                         lazy='dynamic', cascade="all,delete")
+    authtoken = db.relationship('Authtoken', backref='user', cascade="all,delete")
 
     def __repr__(self):
         return f'User #{self.id} "{self.username}"'
@@ -42,8 +44,6 @@ class Authtoken(db.Model):
     key = db.Column(db.VARCHAR(20), primary_key=True, default=lambda: generate_key(20), )
     user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"),
                         nullable=False, unique=True)
-
-    user = db.relationship('User', backref='authtoken')
 
     def update_key(self):
         self.key = generate_key(20)
@@ -72,9 +72,11 @@ class Courier(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.VARCHAR(64), nullable=False, unique=True)
     required_documents = db.Column(db.JSON)
+    drl_pattern = db.Column(db.VARCHAR, nullable=True)
+    drl_content = db.Column(db.JSON)
+    email = db.Column(db.VARCHAR, nullable=True)
 
     results = db.relationship('CalculateResult', backref='courier', lazy='dynamic')
-    cases = db.relationship('Case', backref='courier', lazy='dynamic')
 
     def __repr__(self):
         return f'Courier "{self.name}"'
@@ -119,18 +121,19 @@ class CalculateResult(db.Model):
 class Case(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
-    courier_id = db.Column(db.Integer, db.ForeignKey("courier.id"), nullable=False)
-    result_id = db.Column(db.Integer, db.ForeignKey("calculate_result.id"), nullable=False,
-                          unique=True)
+    result_id = db.Column(db.Integer, db.ForeignKey("calculate_result.id"), nullable=False, unique=True)
     tracking_number = db.Column(db.VARCHAR(12), nullable=False)
     signature = db.Column(db.VARCHAR, nullable=False)
+    drl_document = db.Column(db.VARCHAR, nullable=True)
+    hmrc_document = db.Column(db.VARCHAR, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     hmrc_payment = db.Column(db.DECIMAL, nullable=True)
     epu_number = db.Column(db.Integer, nullable=True)
     import_entry_number = db.Column(db.Integer, nullable=True)
-    import_entry_date = db.Column(db.Date, default=datetime.utcnow, nullable=True)
+    import_entry_date = db.Column(db.Date, nullable=True)
     custom_number = db.Column(db.Integer, nullable=True)
     status = db.Column(db.SmallInteger, nullable=False, default=0)
+    airtable_id = db.Column(db.VARCHAR, nullable=True)
 
     documents = db.relationship('Document', backref='case', lazy='dynamic',
                                 cascade="all,delete")
@@ -139,10 +142,24 @@ class Case(db.Model):
 
     class STATUS:
         NEW = 0
-        SUBMISSION = 1
-        SUBMITTED = 2
-        HMRC_AGREED = 3
-        PAID = 4
+        WAITING = 1
+        SUBMISSION = 2
+        SUBMITTED = 3
+        HMRC_AGREED = 4
+        PAID = 5
+
+    @property
+    def str_status(self):
+        if self.status == 0:
+            return 'new'
+        elif self.status == 1:
+            return 'submission'
+        elif self.status == 2:
+            return 'submitted'
+        elif self.status == 3:
+            return 'hmrc_agreed'
+        else:
+            return 'paid'
 
     def __repr__(self):
         return f'Case {self.id}'
