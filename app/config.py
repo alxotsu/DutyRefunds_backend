@@ -31,6 +31,9 @@ Environment requirements:
         EMAIL_HOST_PASSWORD:
             type: str | None
             default: None
+        TRUSTPILOT:
+            type: str | None
+            default: None
 
     APIs:
         SD_API_KEY:
@@ -76,4 +79,7 @@ class Config:
     AIRTABLE_URL = getenv('AT_URL')
 
     CELERY_BROKER_URL = getenv("CELERY_BROKER", 'redis://127.0.0.1:6379/0')
+    # command for creating celery worker
     # celery -A app.celery worker -Q sending -P solo --loglevel=info
+
+    TRUSTPILOT = getenv('TRUSTPILOT')

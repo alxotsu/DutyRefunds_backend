@@ -103,14 +103,13 @@ class TokenView(GenericView):
         if confirm_obj.key == request.request_data["key"]:
             user = confirm_obj.user
             user.email = confirm_obj.email
-            if user.authtoken:
+            if user.authtoken.all():
                 token = user.authtoken[0]
-                token.update_key()
             else:
                 token = Authtoken(user=user)
+                db.session.add(token)
 
-            db.session.add(token)
-            for obj in user.email_confirm_obj:
+            for obj in user.email_confirm_obj.all():
                 db.session.delete(obj)
             db.session.commit()
 
@@ -254,6 +253,15 @@ class CaseEditorView(GenericView, GetMixin, UpdateMixin):
                 send_request_documents(case)
                 send_case_submission(case)
 
+        if case.status == Case.STATUS.HMRC_AGREED:
+            if request.user.bank_name is None or \
+               request.user.bank_code is None or \
+               request.user.card_number is None:
+
+                raise APIException("User bank detail required", 400)
+
+            case.status = Case.STATUS.BANK_DETAILS_SUBMITTED
+
         airtable_id = send_to_airtable(case)
         case.airtable_id = airtable_id
 
@@ -363,12 +371,16 @@ class AdminCaseSubmitView(GenericView, UpdateMixin):
             instance.hmrc_payment = request.request_data["hmrc_payment"]
             send_to_hmrc(instance)
 
+            send_bank_details_request(instance)
+
         elif step == 'done':
-            if instance.status != Case.STATUS.HMRC_AGREED:
-                raise APIException("HMRC for the Case is not agreed", 403)
+            if instance.status != Case.STATUS.BANK_DETAILS_SUBMITTED:
+                raise APIException("bank details for the Case is not submitted", 403)
+
+            send_case_paid(instance)
 
         else:
-            raise APIException("Unexpected 'step' value", 400)
+            raise APIException("Unexpected 'step' value", 404)
 
         instance.status += 1
         db.session.add(instance)
