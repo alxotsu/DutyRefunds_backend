@@ -103,7 +103,7 @@ class TokenView(GenericView):
         if confirm_obj.key == request.request_data["key"]:
             user = confirm_obj.user
             user.email = confirm_obj.email
-            if user.authtoken.all():
+            if user.authtoken:
                 token = user.authtoken[0]
             else:
                 token = Authtoken(user=user)
@@ -289,7 +289,7 @@ class CaseDocumentAdder(GenericView, UpdateMixin):
         if request.user.role == User.ROLE.ADMIN:
             case = Case.query.filter_by(id=case_id, status=Case.STATUS.WAITING).first()
         else:
-            case = request.user.cases.filter_by(id=case_id).first()
+            case = request.user.cases.filter_by(id=case_id, user_id=request.user.id).first()
         if case is None:
             raise APIException(f"Case #{case_id} is not found", 404)
         if case.status >= Case.STATUS.SUBMITTED:

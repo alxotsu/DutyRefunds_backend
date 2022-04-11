@@ -272,11 +272,11 @@ def send_bank_details_request(case, send_reminder=True):
     if not send_reminder:
         title += ' reminder'
 
-    send_mail(title, text,[user.email])
+    send_mail(title, text, [user.email])
 
     if send_reminder:
         send_bank_details_request_reminder.apply_async((case.id,),
-                                                       eta=datetime.utcnow() + timedelta(weeks=1),
+                                                       eta=datetime.utcnow() + timedelta(days=3),
                                                        queue='sending')
 
 
