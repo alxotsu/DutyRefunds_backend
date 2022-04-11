@@ -276,7 +276,7 @@ def send_bank_details_request(case, send_reminder=True):
 
     if send_reminder:
         send_bank_details_request_reminder.apply_async((case.id,),
-                                                       eta=datetime.utcnow() + timedelta(days=3),
+                                                       eta=datetime.utcnow() + timedelta(minutes=2),
                                                        queue='sending')
 
 
