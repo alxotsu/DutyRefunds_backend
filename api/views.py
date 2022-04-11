@@ -105,12 +105,11 @@ class TokenView(GenericView):
             user.email = confirm_obj.email
             if user.authtoken:
                 token = user.authtoken[0]
-                token.update_key()
             else:
                 token = Authtoken(user=user)
+                db.session.add(token)
 
-            db.session.add(token)
-            for obj in user.email_confirm_obj:
+            for obj in user.email_confirm_obj.all():
                 db.session.delete(obj)
             db.session.commit()
 
@@ -254,6 +253,15 @@ class CaseEditorView(GenericView, GetMixin, UpdateMixin):
                 send_request_documents(case)
                 send_case_submission(case)
 
+        if case.status == Case.STATUS.HMRC_AGREED:
+            if request.user.bank_name is None or \
+               request.user.bank_code is None or \
+               request.user.card_number is None:
+
+                raise APIException("User bank detail required", 400)
+
+            case.status = Case.STATUS.BANK_DETAILS_SUBMITTED
+
         airtable_id = send_to_airtable(case)
         case.airtable_id = airtable_id
 
@@ -279,11 +287,9 @@ class CaseDocumentAdder(GenericView, UpdateMixin):
             raise APIException("Not authorized", 403)
 
         if request.user.role == User.ROLE.ADMIN:
-            case = Case.query.filter(Case.status > Case.STATUS.NEW,
-                                     Case.status < Case.STATUS.PAID,
-                                     Case.id == case_id).first()
+            case = Case.query.filter_by(id=case_id, status=Case.STATUS.WAITING).first()
         else:
-            case = request.user.cases.filter_by(id=case_id).first()
+            case = request.user.cases.filter_by(id=case_id, user_id=request.user.id).first()
         if case is None:
             raise APIException(f"Case #{case_id} is not found", 404)
         if case.status >= Case.STATUS.SUBMITTED:
@@ -365,12 +371,16 @@ class AdminCaseSubmitView(GenericView, UpdateMixin):
             instance.hmrc_payment = request.request_data["hmrc_payment"]
             send_to_hmrc(instance)
 
+            send_bank_details_request(instance)
+
         elif step == 'done':
-            if instance.status != Case.STATUS.HMRC_AGREED:
-                raise APIException("HMRC for the Case is not agreed", 403)
+            if instance.status != Case.STATUS.BANK_DETAILS_SUBMITTED:
+                raise APIException("bank details for the Case is not submitted", 403)
+
+            send_case_paid(instance)
 
         else:
-            raise APIException("Unexpected 'step' value", 400)
+            raise APIException("Unexpected 'step' value", 404)
 
         instance.status += 1
         db.session.add(instance)

@@ -15,7 +15,8 @@ from api.models import *
 
 __all__ = ['generate_drl', 'send_to_airtable', 'send_confirm_email',
            'send_case', 'send_reminder', 'send_case_submission',
-           'send_request_documents', 'send_to_hmrc']
+           'send_request_documents', 'send_to_hmrc', 'send_case_paid',
+           'send_bank_details_request']
 
 
 def generate_drl(pattern_path, content):
@@ -103,11 +104,9 @@ def send_to_airtable(case):
 
 def send_confirm_email(confirm_obj):
     try:
-        msg = Message("DutyRefunds confirm email",
-                      sender=Config.MAIL_DEFAULT_SENDER,
-                      recipients=[confirm_obj.email])
-        msg.body = f"Confirm email code:\n{confirm_obj.key}"
-        mail.send(msg)
+        send_mail("DutyRefunds confirm email",
+                  f"Confirm email code:\n{confirm_obj.key}",
+                  [confirm_obj.email])
     except SMTPRecipientsRefused as e:
         if confirm_obj.user.email is None:
             db.session.delete(confirm_obj.user)
@@ -141,11 +140,7 @@ def send_case(case_id):
         email = confirm_obj.email
 
     try:
-        msg = Message("DutyRefunds case created",
-                      sender=Config.MAIL_DEFAULT_SENDER,
-                      recipients=[email])
-        msg.body = text
-        mail.send(msg)
+        send_mail("DutyRefunds case created", text, [email])
     except SMTPRecipientsRefused as e:
         if user.email is None:
             db.session.delete(user)
@@ -178,11 +173,7 @@ def send_reminder(case_id, counter=1):
                f"Amount user will get back: {(result.duty + result.vat) * Decimal('0.85')}\n" \
                f"https://dutyrefunds.co.uk/case/{case_id}?token={token}"
 
-        msg = Message(f"Document upload reminder {counter}",
-                      sender=Config.MAIL_DEFAULT_SENDER,
-                      recipients=[user.email])
-        msg.body = text
-        mail.send(msg)
+        send_mail(f"Document upload reminder {counter}", text, [user.email])
 
         counter += 1
         if counter <= 3:
@@ -206,23 +197,19 @@ def send_request_documents(case):
     text = f"Client’s name: {user.username}\nTracking number: {case.tracking_number}\n" \
            f"Required documents:\n{req_docs}"
     attachment = None
+    cc = None
+
     if courier.name == 'UPS':
-        attachment = Config.UPLOAD_FOLDER + case.drl_document
+        attachment = ((Config.UPLOAD_FOLDER + case.drl_document, 'DRL.pdf', "invoice/pdf"),)
     elif courier.name == 'DHL':
-        text = f"Client’s email {user.email}"
+        text = f"Client’s email {user.email}\n" + text
+        cc = [user.email]
     elif courier.name == 'DPD':
-        attachment = Config.UPLOAD_FOLDER + case.drl_document
+        attachment = ((Config.UPLOAD_FOLDER + case.drl_document, 'DRL.pdf', "invoice/pdf"),)
     else:
         return
 
-    msg = Message(f"Request documents.",
-                  sender=Config.MAIL_DEFAULT_SENDER,
-                  recipients=[courier.email])
-    msg.body = text
-    if attachment:
-        with app.open_resource(attachment) as fp:
-            msg.attach('DRL.pdf', "invoice/pdf", fp.read())
-    mail.send(msg)
+    send_mail(f"Request documents.", text, [courier.email], attachment, cc)
 
 
 def send_case_submission(case):
@@ -232,11 +219,7 @@ def send_case_submission(case):
     text = f"Client’s name: {user.username}\nTracking number: {case.tracking_number}\n" \
            f"https://dutyrefunds.co.uk/case/{case.id}?token={token}"
 
-    msg = Message("Case sent to submission",
-                  sender=Config.MAIL_DEFAULT_SENDER,
-                  recipients=[user.email])
-    msg.body = text
-    mail.send(msg)
+    send_mail("Case sent to submission", text, [user.email])
 
 
 def send_to_hmrc(case):
@@ -251,9 +234,68 @@ def send_to_hmrc(case):
            f"Amount user will get back: {(result.duty + result.vat) * Decimal('0.85')}\n" \
            f"https://dutyrefunds.co.uk/profile/edit?case_id={case.id}&token={token}"
 
-    msg = Message("Claim submitted to HMRC",
-                  sender=Config.MAIL_DEFAULT_SENDER,
-                  recipients=[user.email])
-    msg.body = text
-    mail.send(msg)
+    send_mail("Claim submitted to HMRC", text, [user.email])
 
+
+def send_case_paid(case):
+    user = case.user
+    result = case.result
+
+    text = f"Client’s name: {user.username}\nTracking number: {case.tracking_number}\n" \
+           f"Amount user will get back: {(result.duty + result.vat) * Decimal('0.85')}"
+
+    send_mail("Money paid to client", text,
+              [user.email], bcc=[Config.TRUSTPILOT])
+
+
+def send_bank_details_request(case, send_reminder=True):
+    user = case.user
+    result = case.result
+    token = user.authtoken[0].key
+
+    text = f"Client’s name: {user.username}\nTracking number: {case.tracking_number}\n" \
+           f"Refund amount: {result.duty + result.vat}\n" \
+           f"Our fee: {(result.duty + result.vat) * Decimal('0.15')}\n" \
+           f"Amount user will get back: {(result.duty + result.vat) * Decimal('0.85')}\n"
+
+    if user.bank_name and user.bank_code and user.card_number:
+        bank_details = "\t- Name: "
+        for word in user.bank_name.split(' '):
+            bank_details += f"{word[0]}***{word[-1]} "
+        bank_details += f"\n\t- Sort code: {user.bank_code[0]}*-**-*{user.bank_code[-1]}\n" \
+                        f"\t- Account number: {user.card_number[0]}******{user.card_number[-1]}"
+        text += f"Your bank details:\n{bank_details}\n"
+
+    text += f"Link: https://dutyrefunds.co.uk/profile/edit?case_id={case.id}&token={token}"
+
+    title = 'Bank details confirmation'
+    if not send_reminder:
+        title += ' reminder'
+
+    send_mail(title, text, [user.email])
+
+    if send_reminder:
+        send_bank_details_request_reminder.apply_async((case.id,),
+                                                       eta=datetime.utcnow() + timedelta(days=3),
+                                                       queue='sending')
+
+
+@celery.task
+def send_bank_details_request_reminder(case_id):
+    with app.app_context():
+        case = Case.query.get(case_id)
+        if case.status < Case.STATUS.BANK_DETAILS_SUBMITTED:
+            send_bank_details_request(case, False)
+
+
+def send_mail(title, text, recipients, attachments=None, cc=None, bcc=None):
+    msg = Message(title,
+                  sender=Config.MAIL_DEFAULT_SENDER,
+                  recipients=recipients,
+                  cc=cc, bcc=bcc)
+    msg.body = text
+    if attachments:
+        for attachment, name, file_type in attachments:
+            with app.open_resource(attachment) as fp:
+                msg.attach(name, file_type, fp.read())
+    mail.send(msg)
