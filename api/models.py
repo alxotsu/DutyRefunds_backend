@@ -146,18 +146,23 @@ class Case(db.Model):
         SUBMISSION = 2
         SUBMITTED = 3
         HMRC_AGREED = 4
-        PAID = 5
+        BANK_DETAILS_SUBMITTED = 5
+        PAID = 6
 
     @property
     def str_status(self):
         if self.status == 0:
             return 'new'
         elif self.status == 1:
-            return 'submission'
+            return 'waiting'
         elif self.status == 2:
-            return 'submitted'
+            return 'submission'
         elif self.status == 3:
+            return 'submitted'
+        elif self.status == 4:
             return 'hmrc_agreed'
+        elif self.status == 5:
+            return 'bank_details_submitted'
         else:
             return 'paid'
 
