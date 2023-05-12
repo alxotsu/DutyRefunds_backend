@@ -17,7 +17,7 @@ class UserSerializer(ModelSerializer):
         email = self.data.pop("email")
         instance = super(UserSerializer, self).create()
 
-        email_confirm_instance = EmailConfirm(user=instance, email=email)
+        EmailConfirm(user=instance, email=email).create()
 
         return instance
 
